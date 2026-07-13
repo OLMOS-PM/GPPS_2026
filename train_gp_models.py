@@ -18,7 +18,7 @@ from typing import Optional
 import gpytorch
 import numpy as np
 import torch
-from gpytorch.constraints import GreaterThan
+from gpytorch.constraints import GreaterThan, Positive
 
 
 Tensor = torch.Tensor
@@ -42,6 +42,152 @@ class SharedHyperparameterGP(gpytorch.models.ExactGP):
         mean = self.mean_module(x)
         covariance = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean, covariance)
+
+
+class SymmetricSpectralMixtureRFFKernel(gpytorch.kernels.Kernel):
+    """RFF kernel for a mixture of symmetric Gaussian spectral pairs.
+
+    Component q has normalized spectral density
+
+        0.5 N(+mean_q, spectral_variance)
+        + 0.5 N(-mean_q, spectral_variance).
+
+    Fixed standard-normal draws provide a differentiable reparameterization
+    ``frequency = mean_q + sqrt(variance_q) * epsilon``. Paired cosine/sine
+    features implicitly symmetrize each component. The positive means and the
+    softmax mixture weights are learned by marginal-likelihood optimization.
+    """
+
+    is_stationary = True
+
+    def __init__(
+        self,
+        component_means: Tensor,
+        *,
+        num_frequencies_per_component: int = 64,
+        spectral_variance: float | Tensor = 1.0,
+        learn_spectral_variance: bool = False,
+        initial_weights: Optional[Tensor] = None,
+        seed: int = 23,
+    ) -> None:
+        super().__init__()
+        means = torch.as_tensor(component_means, dtype=torch.get_default_dtype())
+        if means.ndim != 1 or means.numel() == 0 or torch.any(means <= 0):
+            raise ValueError("component_means must be a non-empty positive 1D tensor")
+        if num_frequencies_per_component <= 0:
+            raise ValueError("num_frequencies_per_component must be positive")
+        variances = torch.as_tensor(spectral_variance, dtype=means.dtype)
+        if variances.ndim == 0:
+            variances = variances.expand_as(means).clone()
+        if variances.shape != means.shape or torch.any(variances <= 0):
+            raise ValueError(
+                "spectral_variance must be positive and scalar or match the means"
+            )
+
+        self.num_components = int(means.numel())
+        self.num_frequencies_per_component = num_frequencies_per_component
+        self.register_parameter(
+            "raw_component_means", torch.nn.Parameter(torch.zeros_like(means))
+        )
+        self.register_constraint("raw_component_means", Positive())
+        self.component_means = means
+
+        if initial_weights is None:
+            weights = torch.full_like(means, 1.0 / self.num_components)
+        else:
+            weights = torch.as_tensor(initial_weights, dtype=means.dtype)
+            if weights.shape != means.shape or torch.any(weights <= 0):
+                raise ValueError("initial_weights must be positive and match the means")
+            weights = weights / weights.sum()
+        self.raw_mixture_logits = torch.nn.Parameter(weights.log())
+        self.register_parameter(
+            "raw_spectral_variances", torch.nn.Parameter(torch.zeros_like(variances))
+        )
+        self.register_constraint("raw_spectral_variances", Positive())
+        self.spectral_variances = variances
+        self.raw_spectral_variances.requires_grad_(learn_spectral_variance)
+
+        with torch.random.fork_rng():
+            torch.manual_seed(seed)
+            half_count = (self.num_frequencies_per_component + 1) // 2
+            half_draws = torch.randn(half_count, dtype=means.dtype)
+            # Common antithetic draws give every mixture component the same
+            # finite-sample envelope and reduce spurious weight differences.
+            one_component_draws = torch.cat((half_draws, -half_draws))[
+                : self.num_frequencies_per_component
+            ]
+            standard_frequencies = one_component_draws.unsqueeze(0).repeat(
+                self.num_components, 1
+            )
+        self.register_buffer("standard_frequencies", standard_frequencies)
+
+    @property
+    def component_means(self) -> Tensor:
+        return self.raw_component_means_constraint.transform(self.raw_component_means)
+
+    @component_means.setter
+    def component_means(self, value: Tensor) -> None:
+        value = torch.as_tensor(
+            value,
+            dtype=self.raw_component_means.dtype,
+            device=self.raw_component_means.device,
+        )
+        self.initialize(
+            raw_component_means=self.raw_component_means_constraint.inverse_transform(value)
+        )
+
+    @property
+    def mixture_weights(self) -> Tensor:
+        return torch.softmax(self.raw_mixture_logits, dim=-1)
+
+    @property
+    def spectral_variances(self) -> Tensor:
+        return self.raw_spectral_variances_constraint.transform(
+            self.raw_spectral_variances
+        )
+
+    @spectral_variances.setter
+    def spectral_variances(self, value: Tensor) -> None:
+        value = torch.as_tensor(
+            value,
+            dtype=self.raw_spectral_variances.dtype,
+            device=self.raw_spectral_variances.device,
+        )
+        self.initialize(
+            raw_spectral_variances=(
+                self.raw_spectral_variances_constraint.inverse_transform(value)
+            )
+        )
+
+    def _features(self, x: Tensor) -> Tensor:
+        if x.shape[-1] != 1:
+            raise ValueError("SymmetricSpectralMixtureRFFKernel supports 1D inputs")
+        frequencies = (
+            self.component_means.unsqueeze(-1)
+            + self.spectral_variances.sqrt().unsqueeze(-1)
+            * self.standard_frequencies
+        )
+        projection = x.squeeze(-1).unsqueeze(-1).unsqueeze(-1) * frequencies
+        features = torch.cat((projection.cos(), projection.sin()), dim=-1)
+        scale_shape = [1] * (features.ndim - 2) + [self.num_components, 1]
+        scales = (
+            self.mixture_weights / self.num_frequencies_per_component
+        ).sqrt().view(*scale_shape)
+        features = features * scales
+        return features.flatten(start_dim=-2)
+
+    def forward(
+        self,
+        x1: Tensor,
+        x2: Tensor,
+        diag: bool = False,
+        **params: object,
+    ) -> Tensor:
+        features_1 = self._features(x1)
+        features_2 = self._features(x2)
+        if diag:
+            return (features_1 * features_2).sum(dim=-1)
+        return features_1 @ features_2.transpose(-1, -2)
 
 
 @dataclass(frozen=True)
@@ -131,6 +277,34 @@ def build_rff_gp(
     return model, likelihood
 
 
+def build_symmetric_spectral_mixture_rff_gp(
+    train_x: Tensor,
+    train_curves: Tensor,
+    *,
+    initial_component_means: Tensor,
+    num_frequencies_per_component: int = 64,
+    spectral_variance: float | Tensor = 1.0,
+    learn_spectral_variance: bool = False,
+    initial_weights: Optional[Tensor] = None,
+    seed: int = 23,
+    initial_outputscale: float = 1.0,
+    initial_noise: float = 0.01,
+) -> tuple[SharedHyperparameterGP, gpytorch.likelihoods.GaussianLikelihood]:
+    """Build a GP with a learnable symmetric spectral-mixture RFF kernel."""
+    likelihood = _new_likelihood(initial_noise)
+    base_kernel = SymmetricSpectralMixtureRFFKernel(
+        initial_component_means,
+        num_frequencies_per_component=num_frequencies_per_component,
+        spectral_variance=spectral_variance,
+        learn_spectral_variance=learn_spectral_variance,
+        initial_weights=initial_weights,
+        seed=seed,
+    )
+    model = SharedHyperparameterGP(train_x, train_curves, likelihood, base_kernel)
+    model.covar_module.initialize(outputscale=initial_outputscale)
+    return model, likelihood
+
+
 def train_shared_gp(
     model: SharedHyperparameterGP,
     likelihood: gpytorch.likelihoods.GaussianLikelihood,
@@ -168,13 +342,26 @@ def train_shared_gp(
         loss_value = float(loss.detach().cpu())
         losses.append(loss_value)
         if print_every > 0 and (step == 1 or step % print_every == 0):
-            parameters = learned_hyperparameters(model, likelihood)
-            print(
-                f"step {step:4d}/{num_steps} | loss={loss_value:.4f} | "
-                f"ell={parameters['lengthscale']:.4f} | "
-                f"scale={parameters['outputscale']:.4f} | "
-                f"noise={parameters['noise']:.5f}"
-            )
+            base_kernel = model.covar_module.base_kernel
+            if isinstance(base_kernel, SymmetricSpectralMixtureRFFKernel):
+                means = base_kernel.component_means.detach().cpu().numpy()
+                weights = base_kernel.mixture_weights.detach().cpu().numpy()
+                variances = base_kernel.spectral_variances.detach().cpu().numpy()
+                print(
+                    f"step {step:4d}/{num_steps} | loss={loss_value:.4f} | "
+                    f"spectral_means={np.round(means, 3)} | "
+                    f"variances={np.round(variances, 3)} | "
+                    f"weights={np.round(weights, 3)} | "
+                    f"noise={float(likelihood.noise.detach().cpu().squeeze()):.5f}"
+                )
+            else:
+                parameters = learned_hyperparameters(model, likelihood)
+                print(
+                    f"step {step:4d}/{num_steps} | loss={loss_value:.4f} | "
+                    f"ell={parameters['lengthscale']:.4f} | "
+                    f"scale={parameters['outputscale']:.4f} | "
+                    f"noise={parameters['noise']:.5f}"
+                )
 
     return losses
 
@@ -206,6 +393,26 @@ def learned_hyperparameters(
         "mean": float(model.mean_module.constant.detach().cpu().squeeze()),
         "lengthscale": float(
             model.covar_module.base_kernel.lengthscale.detach().cpu().squeeze()
+        ),
+        "outputscale": float(model.covar_module.outputscale.detach().cpu()),
+        "noise": float(likelihood.noise.detach().cpu().squeeze()),
+    }
+
+
+def learned_spectral_mixture_parameters(
+    model: SharedHyperparameterGP,
+    likelihood: gpytorch.likelihoods.GaussianLikelihood,
+) -> dict[str, object]:
+    """Return learned parameters from a symmetric spectral-mixture RFF GP."""
+    kernel = model.covar_module.base_kernel
+    if not isinstance(kernel, SymmetricSpectralMixtureRFFKernel):
+        raise TypeError("model does not use SymmetricSpectralMixtureRFFKernel")
+    return {
+        "mean": float(model.mean_module.constant.detach().cpu().squeeze()),
+        "component_means": kernel.component_means.detach().cpu().numpy().copy(),
+        "mixture_weights": kernel.mixture_weights.detach().cpu().numpy().copy(),
+        "spectral_variances": (
+            kernel.spectral_variances.detach().cpu().numpy().copy()
         ),
         "outputscale": float(model.covar_module.outputscale.detach().cpu()),
         "noise": float(likelihood.noise.detach().cpu().squeeze()),
