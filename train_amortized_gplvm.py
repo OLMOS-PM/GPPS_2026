@@ -47,13 +47,16 @@ class AmortizedCNNEncoder(nn.Module):
         if image_side * image_side != observed_dim:
             raise ValueError("the CNN encoder requires square image observations")
         self.image_side = image_side
+        first_conv_side = (image_side + 1) // 2
+        second_conv_side = (first_conv_side + 1) // 2
         self.backbone = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1), nn.ReLU(),
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1), nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten(),
+            nn.Flatten(),
+            nn.Linear(32 * second_conv_side * second_conv_side, 64), nn.ReLU(),
         )
-        self.mean_head = nn.Linear(32, latent_dim)
-        self.log_variance_head = nn.Linear(32, latent_dim)
+        self.mean_head = nn.Linear(64, latent_dim)
+        self.log_variance_head = nn.Linear(64, latent_dim)
 
     def forward(self, y: Tensor) -> tuple[Tensor, Tensor]:
         features = self.backbone(y.reshape(-1, 1, self.image_side, self.image_side))

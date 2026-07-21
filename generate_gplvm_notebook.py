@@ -18,9 +18,9 @@ def code(source: str) -> dict:
 cells = [
 md(r"""# Gaussian Processes Summer School
 
-## Part 5: Amortized variational GPLVMs on MNIST
+## Part 5: Amortized variational GPLVMs on MNIST or Fashion-MNIST
 
-In Parts 1--4 the GP inputs were observed. Here they are learned: every MNIST image
+In Parts 1--4 the GP inputs were observed. Here they are learned: every image
 $\mathbf y_n\in\mathbb R^{784}$ receives a low-dimensional latent coordinate
 $\mathbf x_n\in\mathbb R^Q$. We first use an RBF kernel and then replace its Gaussian
 spectrum by the learnable three-Gaussian mixture introduced in Part 2.
@@ -32,8 +32,8 @@ spectrum by the learnable three-Gaussian mixture introduced in Part 2.
 3. Train with a Monte Carlo estimate of the ELBO while keeping $q(W)=p_\theta(W)$.
 4. Compare an RBF spectral prior with a learned symmetric mixture of three Gaussians.
 
-A reproducible balanced subset of 1,000 MNIST images (100 per digit) is used in one full-batch
-ELBO. With $L=200$ random Fourier features, the determinant lemma and Woodbury identity reduce GP
+A reproducible balanced subset of 1,000 images (100 per class) is used in one full-batch
+ELBO. With $L=400$ random Fourier features, the determinant lemma and Woodbury identity reduce GP
 inference to $L\times L$ linear algebra: the $N\times N$ covariance is never constructed. This is
 not a sparse or inducing-point GPLVM."""),
 md(r"""## 1. Model and variational objective
@@ -138,40 +138,60 @@ random.seed(SEED); np.random.seed(SEED); torch.manual_seed(SEED)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("device:", device)"""),
 code("""# Shared configuration for every GPLVM variant in this notebook.
+DATASET_NAME = "MNIST"  # Choose "MNIST" or "FMNIST" (Fashion-MNIST).
 LATENT_DIM = 10
-NUM_FOURIER_SAMPLES = 200
-NUM_EPOCHS = 1000
+NUM_FOURIER_SAMPLES = 400
+NUM_EPOCHS = 2000
 PRINT_EVERY = 100
-TSNE_NUM_POINTS = 1000
+TSNE_NUM_POINTS = 2000
 
 print(
-    f"configuration: Q={LATENT_DIM}, L={NUM_FOURIER_SAMPLES}, "
+    f"configuration: dataset={DATASET_NAME}, Q={LATENT_DIM}, L={NUM_FOURIER_SAMPLES}, "
     f"epochs={NUM_EPOCHS}, print_every={PRINT_EVERY}, "
     f"t-SNE points={TSNE_NUM_POINTS}"
 )"""),
-md(r"""## 2. MNIST data
+md(r"""## 2. Image data
 
-We select 100 images independently from each digit class, giving $N=1{,}000$. Pixel values are
-centered using the balanced subset mean because the GP likelihood has zero mean. Labels determine
-only this balanced sampling and are not part of the GPLVM objective. The first run downloads MNIST
-to `./data`."""),
-code("""try:
-    from torchvision.datasets import MNIST
+Set `DATASET_NAME` in the configuration cell to either `"MNIST"` or `"FMNIST"`. We select
+100 images independently from each class, giving $N=1{,}000$. Pixel values are centered using the
+balanced subset mean because the GP likelihood has zero mean. Labels determine only this balanced
+sampling and are not part of the GPLVM objective. The first run downloads the selected dataset to
+`./data`."""),
+code("""dataset_options = {
+    "MNIST": {
+        "class_names": [str(index) for index in range(10)],
+        "base_url": "https://storage.googleapis.com/cvdf-datasets/mnist/",
+    },
+    "FMNIST": {
+        "class_names": [
+            "T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+            "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot",
+        ],
+        "base_url": "https://github.com/zalandoresearch/fashion-mnist/raw/master/data/fashion/",
+    },
+}
+if DATASET_NAME not in dataset_options:
+    raise ValueError(f"DATASET_NAME must be one of {tuple(dataset_options)}, got {DATASET_NAME!r}")
+dataset_config = dataset_options[DATASET_NAME]
+class_names = dataset_config["class_names"]
+
+try:
+    from torchvision.datasets import FashionMNIST, MNIST
     from torchvision.transforms import ToTensor
-    dataset = MNIST(root="data", train=True, download=True, transform=ToTensor())
+    dataset_class = {"MNIST": MNIST, "FMNIST": FashionMNIST}[DATASET_NAME]
+    dataset = dataset_class(root="data", train=True, download=True, transform=ToTensor())
     targets = dataset.targets.numpy()
     all_images = dataset.data.reshape(-1, 784).to(torch.float32) / 255.0
 except (ImportError, RuntimeError):
     # Standard-library fallback: avoids a scikit-learn/SciPy dependency.
-    base_url = "https://storage.googleapis.com/cvdf-datasets/mnist/"
-    raw_dir = Path("data/mnist_raw")
+    raw_dir = Path("data") / f"{DATASET_NAME.lower()}_raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     files = {"images": "train-images-idx3-ubyte.gz", "labels": "train-labels-idx1-ubyte.gz"}
     for filename in files.values():
         destination = raw_dir / filename
         if not destination.exists():
             print("downloading", filename)
-            urllib.request.urlretrieve(base_url + filename, destination)
+            urllib.request.urlretrieve(dataset_config["base_url"] + filename, destination)
     with gzip.open(raw_dir / files["images"], "rb") as stream:
         _, count, rows, cols = struct.unpack(">IIII", stream.read(16))
         pixels = np.frombuffer(stream.read(), dtype=np.uint8).reshape(count, rows * cols)
@@ -182,23 +202,23 @@ except (ImportError, RuntimeError):
 
 rng = np.random.default_rng(SEED)
 selected_indices = np.concatenate([
-    rng.choice(np.flatnonzero(targets == digit), 100, replace=False)
-    for digit in range(10)
+    rng.choice(np.flatnonzero(targets == class_index), 100, replace=False)
+    for class_index in range(10)
 ])
 rng.shuffle(selected_indices)
 images_raw = all_images[selected_indices]
 labels = targets[selected_indices]
 pixel_mean = images_raw.mean(0, keepdim=True)
 images = (images_raw - pixel_mean).to(device)
-print(f"Y shape: {tuple(images.shape)} (examples x pixels)")
+print(f"{DATASET_NAME}: Y shape {tuple(images.shape)} (examples x pixels)")
 
 fig, axes = plt.subplots(2, 10, figsize=(12, 2.8))
-for digit, ax_col in enumerate(axes.T):
-    examples = np.flatnonzero(labels == digit)[:2]
+for class_index, ax_col in enumerate(axes.T):
+    examples = np.flatnonzero(labels == class_index)[:2]
     for idx, ax in zip(examples, ax_col):
         ax.imshow(images_raw[idx].reshape(28, 28), cmap="gray")
         ax.axis("off")
-        ax.set_title(str(digit))
+        ax.set_title(class_names[class_index], fontsize=7)
 plt.tight_layout()"""),
 md(r"""## 3. Baseline: RBF spectral prior
 
@@ -275,7 +295,7 @@ visualization_indices = np.random.default_rng(SEED + 1).choice(
 z_rbf_tsne = tsne_projection(z_rbf[visualization_indices], steps=500, seed=SEED)
 fig, ax = plt.subplots(figsize=(6, 5))
 plot_embedding(z_rbf_tsne, labels[visualization_indices], "10D RBF GPLVM — t-SNE view", ax)
-fig.colorbar(ax.collections[0], ax=ax, ticks=range(10), label="digit")
+fig.colorbar(ax.collections[0], ax=ax, ticks=range(10), label="class")
 plt.tight_layout()"""),
 md(r"""## 4. Learned kernel: a symmetric mixture of three Gaussians
 
@@ -317,7 +337,7 @@ z_mix_tsne = tsne_projection(z_mix[visualization_indices], steps=500, seed=SEED)
 fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
 plot_embedding(z_rbf_tsne, labels[visualization_indices], "10D RBF GPLVM — t-SNE view", axes[0])
 plot_embedding(z_mix_tsne, labels[visualization_indices], "10D 3-Gaussian GPLVM — t-SNE view", axes[1])
-fig.colorbar(axes[1].collections[0], ax=axes, ticks=range(10), label="digit")
+fig.colorbar(axes[1].collections[0], ax=axes, ticks=range(10), label="class")
 plt.show()"""),
 md(r"""## 5. Generate images from each GPLVM
 
@@ -448,7 +468,7 @@ md(r"""## 7. What the comparison means
 - **Tied spectral posterior:** $q(W)=p_\theta(W)$ removes a variational KL and avoids storing
   frequency-specific variational parameters. It retains Monte Carlo uncertainty but cannot adapt
   individual frequencies to the dataset independently of the learned prior parameters.
-- **Approximation:** both models use exactly $L=200$ RFFs. More frequencies reduce Monte Carlo
+- **Approximation:** both models use the configured number of RFFs. More frequencies reduce Monte Carlo
   error but increase the $F^\top F$ and $F^\top Y$ costs.
 - **Scaling:** the balanced 1,000-image ELBO is evaluated without inducing variables, explicit
   feature weights, mini-batches, or an $N\times N$ covariance. Woodbury reduces the Cholesky
@@ -514,7 +534,7 @@ print("q(W) summary:", learned_qw_model.spectral_prior.summary())
 fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
 plot_embedding(z_tied_w_tsne, labels[visualization_indices], "10D tied q(W)=p(W) GPLVM — t-SNE view", axes[0])
 plot_embedding(z_learned_qw_tsne, labels[visualization_indices], "10D learned q(W) GPLVM — t-SNE view", axes[1])
-fig.colorbar(axes[1].collections[0], ax=axes, ticks=range(10), label="digit")
+fig.colorbar(axes[1].collections[0], ax=axes, ticks=range(10), label="class")
 plt.tight_layout()"""),
 code("""fig, axes = plt.subplots(1, 2, figsize=(11, 4.2))
 axes[0].plot(-np.asarray(tied_w_history.loss), label="q(W)=p(W)")
@@ -525,7 +545,7 @@ axes[1].plot(learned_qw_history.kl_w, color="tab:orange")
 axes[1].set(title="spectral posterior regularization", xlabel="continuation epoch", ylabel="KL(q(W) || p(W))")
 plt.tight_layout()"""),
 md(r"""The learned posterior is more expressive because individual spectral points may move and
-change uncertainty in response to MNIST. This does not guarantee improvement on every seed: it
+change uncertainty in response to the selected dataset. This does not guarantee improvement on every seed: it
 adds $2LQ=4{,}000$ variational parameters and can overfit. The objective comparison is meaningful
 only when the spectral KL is included, as above; comparing reconstruction terms alone would
 unfairly favor the learned posterior."""),
@@ -533,8 +553,9 @@ md(r"""## 9. Tied spectral posteriors with a CNN amortization network
 
 We now repeat the RBF and three-Gaussian experiments with $q(W)=p_\theta(W)$, replacing the
 two-hidden-layer dense encoder for $q_\phi(X\mid Y)$ with a small convolutional encoder. It
-reshapes each flattened MNIST image to $1\times28\times28$, uses two strided convolutional layers
-with 16 and 32 channels, then produces the latent Gaussian mean and diagonal log-variance. The
+reshapes each flattened image to $1\times28\times28$, uses two strided convolutional layers
+with 16 and 32 channels, preserves the resulting spatial feature map, and uses a 64-unit dense
+layer before producing the latent Gaussian mean and diagonal log-variance. The
 GP likelihood, the number of Fourier features, and all shared training settings are unchanged.
 
 As before, the three-Gaussian model is initialized from the trained CNN-RBF encoder and likelihood
@@ -584,7 +605,7 @@ axes[0].set(title="CNN amortization ELBO", xlabel="epoch", ylabel="ELBO / pixel"
 axes[0].legend()
 plot_embedding(z_cnn_rbf_tsne, labels[visualization_indices], "10D CNN RBF GPLVM — t-SNE view", axes[1])
 plot_embedding(z_cnn_mixture_tsne, labels[visualization_indices], "10D CNN 3-Gaussian GPLVM — t-SNE view", axes[2])
-fig.colorbar(axes[2].collections[0], ax=axes[1:], ticks=range(10), label="digit")
+fig.colorbar(axes[2].collections[0], ax=axes[1:], ticks=range(10), label="class")
 plt.tight_layout()"""),
 ]
 
