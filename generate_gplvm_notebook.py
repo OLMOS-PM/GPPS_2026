@@ -142,10 +142,12 @@ LATENT_DIM = 10
 NUM_FOURIER_SAMPLES = 200
 NUM_EPOCHS = 1000
 PRINT_EVERY = 100
+TSNE_NUM_POINTS = 1000
 
 print(
     f"configuration: Q={LATENT_DIM}, L={NUM_FOURIER_SAMPLES}, "
-    f"epochs={NUM_EPOCHS}, print_every={PRINT_EVERY}"
+    f"epochs={NUM_EPOCHS}, print_every={PRINT_EVERY}, "
+    f"t-SNE points={TSNE_NUM_POINTS}"
 )"""),
 md(r"""## 2. MNIST data
 
@@ -266,7 +268,10 @@ def plot_embedding(z_2d, labels, title, ax):
     return scatter
 
 z_rbf = latent_means(rbf_model, images)
-visualization_indices = np.arange(len(labels))
+num_tsne_points = min(TSNE_NUM_POINTS, len(labels))
+visualization_indices = np.random.default_rng(SEED + 1).choice(
+    len(labels), size=num_tsne_points, replace=False
+)
 z_rbf_tsne = tsne_projection(z_rbf[visualization_indices], steps=500, seed=SEED)
 fig, ax = plt.subplots(figsize=(6, 5))
 plot_embedding(z_rbf_tsne, labels[visualization_indices], "10D RBF GPLVM — t-SNE view", ax)
@@ -414,7 +419,7 @@ def embedding_metrics(z, labels):
     }
 
 for name, z in [("RBF", z_rbf), ("3-Gaussian mixture", z_mix)]:
-    metrics = embedding_metrics(z[visualization_indices], labels[visualization_indices])
+    metrics = embedding_metrics(z, labels)
     print(name, {k: round(v, 3) for k, v in metrics.items()})
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 3.5))
@@ -457,10 +462,10 @@ Gaussian posterior,
 $$q_\psi(W)=\prod_{l=1}^{L}\mathcal N
 (\mathbf w_l;\mathbf m_l,\operatorname{diag}(\mathbf s_l^2)),$$
 
-while the reference prior is the Gaussian RBF spectrum at the learned RBF lengthscales,
+while the reference prior is the unit-scale Gaussian RBF spectrum,
 
 $$p(W)=\prod_{l=1}^{L}\mathcal N
-(\mathbf w_l;0,\operatorname{diag}(\boldsymbol\ell^{-2})).$$
+(\mathbf w_l;0,I).$$
 
 The ELBO gains a nonzero spectral regularizer:
 
@@ -470,30 +475,25 @@ $$\mathcal L_{q(W)}=
 -\mathrm{KL}[q_\psi(W)\|p(W)].$$
 
 The Gaussian KL is analytic, while the reconstruction expectation still uses one reparameterized
-frequency sample. For a controlled comparison, both branches start from the same trained RBF
-encoder and likelihood: one continues with tied $q(W)=p(W)$ and the other learns $q_\psi(W)$.
-A higher ELBO (which already includes the new KL) indicates a tighter variational fit."""),
-code("""# Two continuations from exactly the same trained RBF state.
-tied_w_model = copy.deepcopy(rbf_model)
-prior_scale = rbf_model.spectral_prior.lengthscale.detach().reciprocal()
+frequency sample. The tied branch is the previously trained RBF model and is not trained again.
+The learned-$q(W)$ branch begins from a fresh initialization and is trained for the same number of
+epochs. A higher ELBO (which already includes the new KL) indicates a tighter variational fit."""),
+code("""# Reuse the already-trained tied q(W)=p(W) RBF model without further optimization.
+tied_w_model = rbf_model
+tied_w_history = rbf_history
+
+# Train the learned-q(W) alternative from scratch, with the same random initialization seed.
+torch.manual_seed(SEED)
+prior_scale = torch.ones(LATENT_DIM, device=device)
 learned_qw_model = AmortizedRFFGPLVM(
     observed_dim=images.shape[1],
     latent_dim=LATENT_DIM,
     num_frequencies=NUM_FOURIER_SAMPLES,
     spectral_prior=VariationalGaussianSpectralPosterior(NUM_FOURIER_SAMPLES, prior_scale),
 ).to(device)
-learned_qw_model.encoder.load_state_dict(copy.deepcopy(rbf_model.encoder.state_dict()))
-with torch.no_grad():
-    learned_qw_model.raw_outputscale.copy_(rbf_model.raw_outputscale)
-    learned_qw_model.raw_noise.copy_(rbf_model.raw_noise)
-
-tied_w_history = train_model(
-    tied_w_model, images, epochs=NUM_EPOCHS, learning_rate=1e-3,
-    beta_warmup_epochs=1, print_every=PRINT_EVERY,
-)
 learned_qw_history = train_model(
-    learned_qw_model, images, epochs=NUM_EPOCHS, learning_rate=1e-3,
-    beta_warmup_epochs=1, print_every=PRINT_EVERY,
+    learned_qw_model, images, epochs=NUM_EPOCHS, learning_rate=2e-3,
+    beta_warmup_epochs=200, print_every=PRINT_EVERY,
 )
 
 z_tied_w = latent_means(tied_w_model, images)
