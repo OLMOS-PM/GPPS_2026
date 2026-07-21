@@ -73,18 +73,34 @@ $$\phi_l(\mathbf x)=\sqrt{\frac{2}{L}}
 K_X\approx\sigma_f^2\Phi(X)\Phi(X)^\top.$$
 
 We choose $q(W)=p_\theta(W)$ and draw fresh reparameterized frequencies during training. Thus
-$\mathrm{KL}[q(W)\|p(W)]=0$. The one-sample objective is
+$\mathrm{KL}[q(W)\|p(W)]=0$. The ELBO is
 
-$$\widehat{\mathcal L}=
-\log p(Y\mid X,W)-\mathrm{KL}[q_\phi(X\mid Y)\|p(X)],$$
+$$\mathcal L=
+\underbrace{\mathbb E_{q_\phi(X\mid Y)p_\theta(W)}
+[\log p(Y\mid X,W)]}_{\text{reconstruction term}}
+-\mathrm{KL}[q_\phi(X\mid Y)\|p(X)].$$
 
-where $X=\mu_\phi(Y)+\sigma_\phi(Y)\odot\varepsilon$. Learning $\theta$ is empirical Bayes:
-gradients pass through samples from $p_\theta(W)$. Tying $q(W)$ to the prior is simple and cheap,
-but it does **not** learn a data-adapted posterior over individual frequencies."""),
+We estimate the expectation with one reparameterized draw
+$X=\mu_\phi(Y)+\sigma_\phi(Y)\odot\varepsilon$ and one draw $W\sim p_\theta(W)$ per optimization
+step. Learning $\theta$ is empirical Bayes: gradients pass through samples from $p_\theta(W)$.
+Tying $q(W)$ to the prior is simple and cheap, but it does **not** learn a data-adapted posterior
+over individual frequencies."""),
 md(r"""### Full-batch likelihood without an $N\times N$ covariance
 
 Write $F=\sqrt{\sigma_f^2}\,\Phi_W(X)$ and $C=FF^\top+\sigma^2I_N$. For each of the
-$D=784$ GP outputs, the marginal covariance is $C$. We evaluate it through
+$D=784$ GP outputs, the marginal covariance is $C$. Therefore, the reconstruction term for a
+particular Monte Carlo draw of $(X,W)$ is
+
+$$\log p(Y\mid X,W)=-\frac12\left[
+D\log|C|+\operatorname{tr}(Y^\top C^{-1}Y)+ND\log(2\pi)
+\right].$$
+
+Thus $F$ and $C$ appear inside the ELBO through both parts of the GP reconstruction score:
+$\operatorname{tr}(Y^\top C^{-1}Y)$ measures covariance-weighted data fit, whereas
+$D\log|C|$ penalizes overly flexible covariance structure. This is a probabilistic reconstruction
+term, not an ordinary pixelwise mean-squared error.
+
+We evaluate both terms efficiently through
 
 $$\log|C|=N\log\sigma^2+
 \log\left|I_L+\frac{F^\top F}{\sigma^2}\right|,$$
