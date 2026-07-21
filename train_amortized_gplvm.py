@@ -121,6 +121,50 @@ class ThreeGaussianSpectralPrior(SpectralPrior):
         }
 
 
+class VariationalGaussianSpectralPosterior(SpectralPrior):
+    """Per-frequency diagonal Gaussian q(W), with a fixed Gaussian prior.
+
+    Unlike the tied spectral families above, this module stores variational
+    means and variances for every one of the L frequency vectors and therefore
+    contributes KL[q(W)||p(W)] to the ELBO.
+    """
+
+    def __init__(self, num_frequencies: int, prior_scale: Tensor):
+        super().__init__()
+        prior_scale = torch.as_tensor(prior_scale).detach().clone()
+        if prior_scale.ndim != 1 or torch.any(prior_scale <= 0):
+            raise ValueError("prior_scale must be a positive vector")
+        self.num_frequencies = num_frequencies
+        self.register_buffer("prior_scale", prior_scale)
+        self.means = nn.Parameter(torch.zeros(num_frequencies, prior_scale.numel()))
+        initial_raw_scale = torch.log(torch.expm1(prior_scale))
+        self.raw_scales = nn.Parameter(initial_raw_scale.expand_as(self.means).clone())
+
+    @property
+    def scales(self) -> Tensor:
+        return F.softplus(self.raw_scales) + 1e-4
+
+    def sample(self, num_frequencies: int, latent_dim: int) -> Tensor:
+        if num_frequencies != self.num_frequencies or latent_dim != self.means.shape[1]:
+            raise ValueError("requested frequency shape does not match q(W)")
+        return self.means + self.scales * torch.randn_like(self.means)
+
+    def kl_to_prior(self) -> Tensor:
+        variance_ratio = self.scales.square() / self.prior_scale.square()
+        squared_mean = self.means.square() / self.prior_scale.square()
+        return 0.5 * (
+            variance_ratio + squared_mean - 1.0
+            + 2.0 * (self.prior_scale.log() - self.scales.log())
+        ).sum()
+
+    def summary(self) -> dict[str, np.ndarray]:
+        return {
+            "mean_norm": np.asarray(float(self.means.detach().norm().cpu())),
+            "average_scale": np.asarray(float(self.scales.detach().mean().cpu())),
+            "prior_average_scale": np.asarray(float(self.prior_scale.mean().cpu())),
+        }
+
+
 class AmortizedRFFGPLVM(nn.Module):
     """Bayesian GPLVM with an amortized q(X) and q(W)=p_theta(W)."""
 
@@ -128,7 +172,7 @@ class AmortizedRFFGPLVM(nn.Module):
         self,
         observed_dim: int,
         latent_dim: int = 2,
-        num_frequencies: int = 50,
+        num_frequencies: int = 200,
         spectral_prior: SpectralPrior | None = None,
     ):
         super().__init__()
@@ -218,12 +262,17 @@ class AmortizedRFFGPLVM(nn.Module):
         x = self.sample_latents(mean, log_variance)
         expected_log_likelihood = self.gp_log_likelihood(y, x)
         kl_x = self.latent_kl(mean, log_variance)
-        # There is no KL[q(W)||p(W)]: samples are drawn directly from p_theta(W).
-        loss = -(expected_log_likelihood - beta * kl_x) / y.numel()
+        kl_w = (
+            self.spectral_prior.kl_to_prior()
+            if hasattr(self.spectral_prior, "kl_to_prior")
+            else torch.zeros((), device=y.device)
+        )
+        loss = -(expected_log_likelihood - beta * kl_x - kl_w) / y.numel()
         stats = {
             "loss": float(loss.detach()),
             "log_likelihood_per_pixel": float(expected_log_likelihood.detach() / y.numel()),
             "kl_x_per_example": float(kl_x.detach() / y.shape[0]),
+            "kl_w": float(kl_w.detach()),
         }
         return loss, stats
 
@@ -233,21 +282,22 @@ class TrainingHistory:
     loss: list[float]
     log_likelihood_per_pixel: list[float]
     kl_x_per_example: list[float]
+    kl_w: list[float]
 
 
 def train_model(
     model: AmortizedRFFGPLVM,
     images: Tensor,
     *,
-    epochs: int = 200,
+    epochs: int = 1000,
     learning_rate: float = 2e-3,
-    beta_warmup_epochs: int = 50,
-    print_every: int = 25,
+    beta_warmup_epochs: int = 200,
+    print_every: int = 100,
 ) -> TrainingHistory:
     """Optimize a one-sample Monte Carlo estimate of the variational ELBO."""
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    history = TrainingHistory([], [], [])
+    history = TrainingHistory([], [], [], [])
     for epoch in range(1, epochs + 1):
         beta = min(1.0, epoch / max(1, beta_warmup_epochs))
         optimizer.zero_grad(set_to_none=True)
@@ -255,13 +305,14 @@ def train_model(
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 10.0)
         optimizer.step()
-        for key in ("loss", "log_likelihood_per_pixel", "kl_x_per_example"):
+        for key in ("loss", "log_likelihood_per_pixel", "kl_x_per_example", "kl_w"):
             getattr(history, key).append(stats[key])
         if epoch == 1 or epoch % print_every == 0 or epoch == epochs:
             print(
                 f"epoch {epoch:4d} | loss {stats['loss']:.4f} | "
                 f"log p/pixel {stats['log_likelihood_per_pixel']:.4f} | "
-                f"KL/example {stats['kl_x_per_example']:.3f}"
+                f"KL(X)/example {stats['kl_x_per_example']:.3f} | "
+                f"KL(W) {stats['kl_w']:.3f}"
             )
     return history
 
@@ -280,7 +331,7 @@ def latent_means(
 
 
 @torch.no_grad()
-def sample_posterior_images(
+def posterior_mean_images(
     model: AmortizedRFFGPLVM,
     centered_training_images: Tensor,
     training_latents: Tensor,
@@ -288,7 +339,7 @@ def sample_posterior_images(
     *,
     seed: int = 91,
 ) -> Tensor:
-    """Sample latent functions at query points using Woodbury feature algebra.
+    """Return conditional posterior-mean images using Woodbury feature algebra.
 
     A single draw of W and the phases is shared by training and query features.
     The returned values remain centered; add the training pixel mean before
@@ -320,11 +371,4 @@ def sample_posterior_images(
         posterior_weight_mean = torch.cholesky_solve(
             feature_targets / noise, cholesky
         )
-        image_mean = query_features @ posterior_weight_mean
-        solved_query = torch.linalg.solve_triangular(
-            cholesky, query_features.T, upper=False
-        )
-        function_variance = solved_query.square().sum(0).clamp_min(1e-8)
-        return image_mean + function_variance.sqrt().unsqueeze(1) * torch.randn_like(
-            image_mean
-        )
+        return query_features @ posterior_weight_mean

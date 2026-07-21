@@ -33,7 +33,7 @@ spectrum by the learnable three-Gaussian mixture introduced in Part 2.
 4. Compare an RBF spectral prior with a learned symmetric mixture of three Gaussians.
 
 A reproducible balanced subset of 1,000 MNIST images (100 per digit) is used in one full-batch
-ELBO. With $L=50$ random Fourier features, the determinant lemma and Woodbury identity reduce GP
+ELBO. With $L=200$ random Fourier features, the determinant lemma and Woodbury identity reduce GP
 inference to $L\times L$ linear algebra: the $N\times N$ covariance is never constructed. This is
 not a sparse or inducing-point GPLVM."""),
 md(r"""## 1. Model and variational objective
@@ -127,8 +127,9 @@ from train_amortized_gplvm import (
     AmortizedRFFGPLVM,
     RBFSpectralPrior,
     ThreeGaussianSpectralPrior,
+    VariationalGaussianSpectralPosterior,
     latent_means,
-    sample_posterior_images,
+    posterior_mean_images,
     train_model,
 )
 
@@ -198,12 +199,12 @@ The ARD lengthscales, output scale, noise, and encoder weights are optimized joi
 analytical because both $q_\phi(X\mid Y)$ and $p(X)=\mathcal N(0,I)$ are diagonal Gaussians.
 We warm up its coefficient to reduce early posterior collapse."""),
 code("""rbf_model = AmortizedRFFGPLVM(
-    observed_dim=images.shape[1], latent_dim=10, num_frequencies=50,
+    observed_dim=images.shape[1], latent_dim=10, num_frequencies=200,
     spectral_prior=RBFSpectralPrior(latent_dim=10),
 ).to(device)
 rbf_history = train_model(
-    rbf_model, images, epochs=50, learning_rate=2e-3,
-    beta_warmup_epochs=15, print_every=5,
+    rbf_model, images, epochs=1000, learning_rate=2e-3,
+    beta_warmup_epochs=200, print_every=100,
 )
 print("learned RBF parameters:", rbf_model.spectral_prior.summary())"""),
 code("""def tsne_projection(z, perplexity=30.0, steps=750, seed=SEED):
@@ -278,7 +279,7 @@ so there is no frequency KL term.
 For a fairer comparison, the mixture model starts from a copy of the trained RBF encoder and
 likelihood parameters; only its spectral family is replaced before fine-tuning."""),
 code("""mixture_model = AmortizedRFFGPLVM(
-    observed_dim=images.shape[1], latent_dim=10, num_frequencies=50,
+    observed_dim=images.shape[1], latent_dim=10, num_frequencies=200,
     spectral_prior=ThreeGaussianSpectralPrior(latent_dim=10),
 ).to(device)
 mixture_model.encoder.load_state_dict(copy.deepcopy(rbf_model.encoder.state_dict()))
@@ -287,8 +288,8 @@ with torch.no_grad():
     mixture_model.raw_noise.copy_(rbf_model.raw_noise)
 
 mixture_history = train_model(
-    mixture_model, images, epochs=50, learning_rate=1e-3,
-    beta_warmup_epochs=1, print_every=5,
+    mixture_model, images, epochs=1000, learning_rate=1e-3,
+    beta_warmup_epochs=1, print_every=100,
 )
 summary = mixture_model.spectral_prior.summary()
 print("weights:", np.round(summary["weights"], 3))
@@ -314,10 +315,11 @@ training images gives the feature-space posterior
 $$M=I_L+\frac{F^\top F}{\sigma^2},\qquad
 \mathbb E[f_*\mid Y,X,X_*,W]=F_*M^{-1}\frac{F^\top Y}{\sigma^2}.$$
 
-We draw the latent pixel functions from this posterior, add back the training pixel mean, and
-clip only for display. Both models use the same ten latent draws, so the two $2\times5$ grids
-compare their learned generative mappings rather than different latent samples."""),
-code("""expected_latent_dim, expected_num_features = 10, 50
+We display only this conditional posterior mean, add back the training pixel mean, and clip only
+for display. We deliberately do not add posterior function noise independently to each pixel.
+Both models use the same ten latent draws, so the two $2\times5$ grids compare their learned
+generative mappings rather than different latent inputs."""),
+code("""expected_latent_dim, expected_num_features = 10, 200
 for model_name, model in [("RBF", rbf_model), ("mixture", mixture_model)]:
     if model.latent_dim != expected_latent_dim or model.num_frequencies != expected_num_features:
         raise RuntimeError(
@@ -331,14 +333,14 @@ generation_latents = torch.randn(
     10, expected_latent_dim, generator=generator, device=device
 )
 
-rbf_generated = sample_posterior_images(
+rbf_generated = posterior_mean_images(
     rbf_model,
     images,
     torch.as_tensor(z_rbf, dtype=images.dtype, device=device),
     generation_latents,
     seed=SEED + 101,
 )
-mixture_generated = sample_posterior_images(
+mixture_generated = posterior_mean_images(
     mixture_model,
     images,
     torch.as_tensor(z_mix, dtype=images.dtype, device=device),
@@ -354,13 +356,13 @@ def plot_generated_grid(generated, title):
     for index, ax in enumerate(axes.flat):
         ax.imshow(generated[index].reshape(28, 28), cmap="gray", vmin=0, vmax=1)
         ax.axis("off")
-        ax.set_title(f"sample {index + 1}")
+        ax.set_title(f"mean {index + 1}")
     fig.suptitle(title)
     plt.tight_layout()
     plt.show()
 
-plot_generated_grid(rbf_generated, "Generated MNIST images — RBF GPLVM")
-plot_generated_grid(mixture_generated, "Generated MNIST images — 3-Gaussian GPLVM")"""),
+plot_generated_grid(rbf_generated, "Posterior-mean images — RBF GPLVM")
+plot_generated_grid(mixture_generated, "Posterior-mean images — 3-Gaussian GPLVM")"""),
 md(r"""## 6. Quantitative comparison
 
 The GPLVM objective is trained on all 1,000 selected images. The diagnostics below use all of
@@ -429,11 +431,90 @@ md(r"""## 7. What the comparison means
 - **Tied spectral posterior:** $q(W)=p_\theta(W)$ removes a variational KL and avoids storing
   frequency-specific variational parameters. It retains Monte Carlo uncertainty but cannot adapt
   individual frequencies to the dataset independently of the learned prior parameters.
-- **Approximation:** both models use exactly $L=50$ RFFs. More frequencies reduce Monte Carlo
+- **Approximation:** both models use exactly $L=200$ RFFs. More frequencies reduce Monte Carlo
   error but increase the $F^\top F$ and $F^\top Y$ costs.
 - **Scaling:** the balanced 1,000-image ELBO is evaluated without inducing variables, explicit
   feature weights, mini-batches, or an $N\times N$ covariance. Woodbury reduces the Cholesky
-  factorization to $50\times50$."""),
+  factorization to $200\times200$."""),
+md(r"""## 8. Improving the variational approximation with a learned $q(W)$
+
+So far, frequency uncertainty was tied to the kernel prior: $q(W)=p_\theta(W)$. We now perform
+an ablation for the RBF model in which each of the $L=200$ frequency vectors has its own diagonal
+Gaussian posterior,
+
+$$q_\psi(W)=\prod_{l=1}^{L}\mathcal N
+(\mathbf w_l;\mathbf m_l,\operatorname{diag}(\mathbf s_l^2)),$$
+
+while the reference prior is the Gaussian RBF spectrum at the learned RBF lengthscales,
+
+$$p(W)=\prod_{l=1}^{L}\mathcal N
+(\mathbf w_l;0,\operatorname{diag}(\boldsymbol\ell^{-2})).$$
+
+The ELBO gains a nonzero spectral regularizer:
+
+$$\mathcal L_{q(W)}=
+\mathbb E_{q_\phi(X\mid Y)q_\psi(W)}[\log p(Y\mid X,W)]
+-\mathrm{KL}[q_\phi(X\mid Y)\|p(X)]
+-\mathrm{KL}[q_\psi(W)\|p(W)].$$
+
+The Gaussian KL is analytic, while the reconstruction expectation still uses one reparameterized
+frequency sample. For a controlled comparison, both branches start from the same trained RBF
+encoder and likelihood: one continues with tied $q(W)=p(W)$ and the other learns $q_\psi(W)$.
+A lower negative ELBO (which already includes the new KL) indicates a tighter variational fit."""),
+code("""# Two continuations from exactly the same trained RBF state.
+tied_w_model = copy.deepcopy(rbf_model)
+prior_scale = rbf_model.spectral_prior.lengthscale.detach().reciprocal()
+learned_qw_model = AmortizedRFFGPLVM(
+    observed_dim=images.shape[1],
+    latent_dim=10,
+    num_frequencies=200,
+    spectral_prior=VariationalGaussianSpectralPosterior(200, prior_scale),
+).to(device)
+learned_qw_model.encoder.load_state_dict(copy.deepcopy(rbf_model.encoder.state_dict()))
+with torch.no_grad():
+    learned_qw_model.raw_outputscale.copy_(rbf_model.raw_outputscale)
+    learned_qw_model.raw_noise.copy_(rbf_model.raw_noise)
+
+tied_w_history = train_model(
+    tied_w_model, images, epochs=1000, learning_rate=1e-3,
+    beta_warmup_epochs=1, print_every=100,
+)
+learned_qw_history = train_model(
+    learned_qw_model, images, epochs=1000, learning_rate=1e-3,
+    beta_warmup_epochs=1, print_every=100,
+)
+
+z_tied_w = latent_means(tied_w_model, images)
+z_learned_qw = latent_means(learned_qw_model, images)
+z_learned_qw_tsne = tsne_projection(z_learned_qw, steps=500, seed=SEED)
+for name, z in [("tied q(W)=p(W)", z_tied_w), ("learned Gaussian q(W)", z_learned_qw)]:
+    values = embedding_metrics(z, labels)
+    print(name, {key: round(value, 3) for key, value in values.items()})
+
+tied_final = np.mean(tied_w_history.loss[-5:])
+learned_final = np.mean(learned_qw_history.loss[-5:])
+print(f"mean final negative ELBO/pixel — tied: {tied_final:.5f}")
+print(f"mean final negative ELBO/pixel — learned q(W): {learned_final:.5f}")
+print(f"improvement (positive favors learned q(W)): {tied_final - learned_final:.5f}")
+print("q(W) summary:", learned_qw_model.spectral_prior.summary())"""),
+code("""fig, axes = plt.subplots(1, 3, figsize=(16, 4.2))
+axes[0].plot(tied_w_history.loss, label="tied q(W)=p(W)")
+axes[0].plot(learned_qw_history.loss, label="learned Gaussian q(W)")
+axes[0].set(title="variational training", xlabel="continuation epoch", ylabel="negative ELBO / pixel")
+axes[0].legend()
+axes[1].plot(learned_qw_history.kl_w, color="tab:orange")
+axes[1].set(title="spectral posterior regularization", xlabel="continuation epoch", ylabel="KL(q(W) || p(W))")
+plot_embedding(
+    z_learned_qw_tsne, labels,
+    "10D learned q(W) GPLVM — t-SNE view", axes[2],
+)
+fig.colorbar(axes[2].collections[0], ax=axes[2], ticks=range(10), label="digit")
+plt.tight_layout()"""),
+md(r"""The learned posterior is more expressive because individual spectral points may move and
+change uncertainty in response to MNIST. This does not guarantee improvement on every seed: it
+adds $2LQ=4{,}000$ variational parameters and can overfit. The objective comparison is meaningful
+only when the spectral KL is included, as above; comparing reconstruction terms alone would
+unfairly favor the learned posterior."""),
 ]
 
 notebook = {
