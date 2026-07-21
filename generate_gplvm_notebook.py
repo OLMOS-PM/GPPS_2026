@@ -23,14 +23,14 @@ md(r"""# Gaussian Processes Summer School
 In Parts 1--4 the GP inputs were observed. Here they are learned: every image
 $\mathbf y_n\in\mathbb R^{784}$ receives a low-dimensional latent coordinate
 $\mathbf x_n\in\mathbb R^Q$. We first use an RBF kernel and then replace its Gaussian
-spectrum by the learnable three-Gaussian mixture introduced in Part 2.
+spectrum by a learnable Gaussian mixture introduced in Part 2.
 
 ### Learning goals
 
 1. Understand dimensionality reduction as inference in a Gaussian process latent variable model (GPLVM).
 2. Amortize the variational distribution $q_\phi(X\mid Y)$ with a neural network.
 3. Train with a Monte Carlo estimate of the ELBO while keeping $q(W)=p_\theta(W)$.
-4. Compare an RBF spectral prior with a learned symmetric mixture of three Gaussians.
+4. Compare an RBF spectral prior with a learned symmetric Gaussian mixture.
 
 A reproducible balanced subset of 1,000 images (100 per class) is used in one full-batch
 ELBO. With $L=400$ random Fourier features, the determinant lemma and Woodbury identity reduce GP
@@ -126,10 +126,10 @@ import torch
 from train_amortized_gplvm import (
     AmortizedRFFGPLVM,
     RBFSpectralPrior,
-    ThreeGaussianSpectralPrior,
+    GaussianMixtureSpectralPrior,
     VariationalGaussianSpectralPosterior,
     latent_means,
-    posterior_mean_images,
+    posterior_mean_reconstructions,
     train_model,
 )
 
@@ -141,12 +141,14 @@ code("""# Shared configuration for every GPLVM variant in this notebook.
 DATASET_NAME = "MNIST"  # Choose "MNIST" or "FMNIST" (Fashion-MNIST).
 LATENT_DIM = 10
 NUM_FOURIER_SAMPLES = 400
+NUM_GAUSSIAN_COMPONENTS = 3
 NUM_EPOCHS = 2000
 PRINT_EVERY = 100
 TSNE_NUM_POINTS = 2000
 
 print(
     f"configuration: dataset={DATASET_NAME}, Q={LATENT_DIM}, L={NUM_FOURIER_SAMPLES}, "
+    f"Gaussian components={NUM_GAUSSIAN_COMPONENTS}, "
     f"epochs={NUM_EPOCHS}, print_every={PRINT_EVERY}, "
     f"t-SNE points={TSNE_NUM_POINTS}"
 )"""),
@@ -297,11 +299,11 @@ fig, ax = plt.subplots(figsize=(6, 5))
 plot_embedding(z_rbf_tsne, labels[visualization_indices], "10D RBF GPLVM — t-SNE view", ax)
 fig.colorbar(ax.collections[0], ax=ax, ticks=range(10), label="class")
 plt.tight_layout()"""),
-md(r"""## 4. Learned kernel: a symmetric mixture of three Gaussians
+md(r"""## 4. Learned kernel: a symmetric Gaussian mixture
 
 As in Part 2, replace the single zero-centered Gaussian spectrum with
 
-$$p_\theta(\mathbf w)=\sum_{q=1}^{3}\rho_q
+$$p_\theta(\mathbf w)=\sum_{q=1}^{M}\rho_q
 \left[\tfrac12\mathcal N(\mathbf w;\boldsymbol\mu_q,
 \operatorname{diag}(\mathbf s_q^2))+
 \tfrac12\mathcal N(\mathbf w;-\boldsymbol\mu_q,
@@ -317,7 +319,9 @@ likelihood parameters; only its spectral family is replaced before fine-tuning."
 code("""mixture_model = AmortizedRFFGPLVM(
     observed_dim=images.shape[1], latent_dim=LATENT_DIM,
     num_frequencies=NUM_FOURIER_SAMPLES,
-    spectral_prior=ThreeGaussianSpectralPrior(latent_dim=LATENT_DIM),
+    spectral_prior=GaussianMixtureSpectralPrior(
+        latent_dim=LATENT_DIM, num_components=NUM_GAUSSIAN_COMPONENTS,
+    ),
 ).to(device)
 mixture_model.encoder.load_state_dict(copy.deepcopy(rbf_model.encoder.state_dict()))
 with torch.no_grad():
@@ -336,70 +340,52 @@ code("""z_mix = latent_means(mixture_model, images)
 z_mix_tsne = tsne_projection(z_mix[visualization_indices], steps=500, seed=SEED)
 fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
 plot_embedding(z_rbf_tsne, labels[visualization_indices], "10D RBF GPLVM — t-SNE view", axes[0])
-plot_embedding(z_mix_tsne, labels[visualization_indices], "10D 3-Gaussian GPLVM — t-SNE view", axes[1])
+plot_embedding(z_mix_tsne, labels[visualization_indices], "10D Gaussian-mixture GPLVM — t-SNE view", axes[1])
 fig.colorbar(axes[1].collections[0], ax=axes, ticks=range(10), label="class")
 plt.show()"""),
-md(r"""## 5. Generate images from each GPLVM
+md(r"""## 5. Reconstruct training images from each GPLVM
 
-Generation begins with ten new latent coordinates
+Rather than sampling new latent points, we reconstruct representative observed images at their
+encoder means. For a query latent $\mathbf x_*$, the reconstruction is the GP posterior mean
 
-$$\mathbf x_*\sim p(\mathbf x)=\mathcal N(0,I_{10}).$$
+$$\mathbb E[f_*\mid Y,X,\mathbf x_*]
+=K(\mathbf x_*,X)\left[K(X,X)+\sigma^2I\right]^{-1}Y.$$
 
-For each kernel, one coherent spectral draw $W\sim q(W)=p_\theta(W)$ is used to evaluate both
-$F=\sqrt{\sigma_f^2}\Phi_W(X)$ and $F_*=\sqrt{\sigma_f^2}\Phi_W(X_*)$. Conditioning on the
-training images gives the feature-space posterior
+The display evaluates the analytic kernel of the tied spectral distribution, so it does **not**
+draw a new finite set of Fourier frequencies from $p(W)$. The posterior mean is deliberately
+smooth because of the observation-noise term; it is not expected to reproduce every training
+pixel exactly."""),
+code("""reconstruction_indices = np.asarray([
+    np.flatnonzero(labels == class_index)[0] for class_index in range(10)
+])
+z_rbf_tensor = torch.as_tensor(z_rbf, dtype=images.dtype, device=device)
+z_mix_tensor = torch.as_tensor(z_mix, dtype=images.dtype, device=device)
 
-$$M=I_L+\frac{F^\top F}{\sigma^2},\qquad
-\mathbb E[f_*\mid Y,X,X_*,W]=F_*M^{-1}\frac{F^\top Y}{\sigma^2}.$$
-
-We display only this conditional posterior mean, add back the training pixel mean, and clip only
-for display. We deliberately do not add posterior function noise independently to each pixel.
-Both models use the same ten latent draws, so the two $2\times5$ grids compare their learned
-generative mappings rather than different latent inputs."""),
-code("""expected_latent_dim, expected_num_features = LATENT_DIM, NUM_FOURIER_SAMPLES
-for model_name, model in [("RBF", rbf_model), ("mixture", mixture_model)]:
-    if model.latent_dim != expected_latent_dim or model.num_frequencies != expected_num_features:
-        raise RuntimeError(
-            f"{model_name} model has Q={model.latent_dim}, L={model.num_frequencies}; "
-            f"expected Q={expected_latent_dim}, L={expected_num_features}. "
-            "Restart the kernel and run all cells from the beginning."
-        )
-
-generator = torch.Generator(device=device).manual_seed(SEED + 100)
-generation_latents = torch.randn(
-    10, expected_latent_dim, generator=generator, device=device
+rbf_reconstructions = posterior_mean_reconstructions(
+    rbf_model, images, z_rbf_tensor, z_rbf_tensor[reconstruction_indices],
 )
-
-rbf_generated = posterior_mean_images(
-    rbf_model,
-    images,
-    torch.as_tensor(z_rbf, dtype=images.dtype, device=device),
-    generation_latents,
-    seed=SEED + 101,
+mixture_reconstructions = posterior_mean_reconstructions(
+    mixture_model, images, z_mix_tensor, z_mix_tensor[reconstruction_indices],
 )
-mixture_generated = posterior_mean_images(
-    mixture_model,
-    images,
-    torch.as_tensor(z_mix, dtype=images.dtype, device=device),
-    generation_latents,
-    seed=SEED + 102,
-)
+rbf_reconstructions = (rbf_reconstructions + pixel_mean.to(device)).clamp(0, 1).cpu()
+mixture_reconstructions = (mixture_reconstructions + pixel_mean.to(device)).clamp(0, 1).cpu()
 
-rbf_generated = (rbf_generated + pixel_mean.to(device)).clamp(0, 1).cpu()
-mixture_generated = (mixture_generated + pixel_mean.to(device)).clamp(0, 1).cpu()
-
-def plot_generated_grid(generated, title):
-    fig, axes = plt.subplots(2, 5, figsize=(8, 3.6))
-    for index, ax in enumerate(axes.flat):
-        ax.imshow(generated[index].reshape(28, 28), cmap="gray", vmin=0, vmax=1)
-        ax.axis("off")
-        ax.set_title(f"mean {index + 1}")
-    fig.suptitle(title)
-    plt.tight_layout()
-    plt.show()
-
-plot_generated_grid(rbf_generated, "Posterior-mean images — RBF GPLVM")
-plot_generated_grid(mixture_generated, "Posterior-mean images — 3-Gaussian GPLVM")"""),
+fig, axes = plt.subplots(3, 10, figsize=(12, 4.2))
+row_labels = ["observed", "RBF reconstruction", "mixture reconstruction"]
+for column, image_index in enumerate(reconstruction_indices):
+    for row, image in enumerate([
+        images_raw[image_index],
+        rbf_reconstructions[column],
+        mixture_reconstructions[column],
+    ]):
+        axes[row, column].imshow(image.reshape(28, 28), cmap="gray", vmin=0, vmax=1)
+        axes[row, column].axis("off")
+        if row == 0:
+            axes[row, column].set_title(class_names[labels[image_index]], fontsize=8)
+for row, row_label in enumerate(row_labels):
+    axes[row, 0].set_ylabel(row_label, fontsize=8)
+fig.suptitle("Posterior-mean reconstructions at inferred training latents")
+plt.tight_layout()"""),
 md(r"""## 6. Quantitative comparison
 
 The GPLVM objective is trained on all 1,000 selected images. The diagnostics below use all of
@@ -438,7 +424,7 @@ def embedding_metrics(z, labels):
         "silhouette": silhouette(z, labels),
     }
 
-for name, z in [("RBF", z_rbf), ("3-Gaussian mixture", z_mix)]:
+for name, z in [("RBF", z_rbf), ("Gaussian mixture", z_mix)]:
     metrics = embedding_metrics(z, labels)
     print(name, {k: round(v, 3) for k, v in metrics.items()})
 
@@ -450,7 +436,7 @@ axes[1].plot(rbf_history.kl_x_per_example, label="RBF")
 axes[1].plot(mixture_history.kl_x_per_example, label="mixture")
 axes[1].set(title="KL(q(X)||p(X)) / example", xlabel="epoch"); axes[1].legend()
 weights = summary["weights"]
-axes[2].bar(np.arange(1, 4), weights)
+axes[2].bar(np.arange(1, len(weights) + 1), weights)
 axes[2].set(title="learned spectral weights", xlabel="component", ylim=(0, 1))
 plt.tight_layout()"""),
 md(r"""## 7. What the comparison means
@@ -551,14 +537,14 @@ only when the spectral KL is included, as above; comparing reconstruction terms 
 unfairly favor the learned posterior."""),
 md(r"""## 9. Tied spectral posteriors with a CNN amortization network
 
-We now repeat the RBF and three-Gaussian experiments with $q(W)=p_\theta(W)$, replacing the
+We now repeat the RBF and Gaussian-mixture experiments with $q(W)=p_\theta(W)$, replacing the
 two-hidden-layer dense encoder for $q_\phi(X\mid Y)$ with a small convolutional encoder. It
 reshapes each flattened image to $1\times28\times28$, uses two strided convolutional layers
 with 16 and 32 channels, preserves the resulting spatial feature map, and uses a 64-unit dense
 layer before producing the latent Gaussian mean and diagonal log-variance. The
 GP likelihood, the number of Fourier features, and all shared training settings are unchanged.
 
-As before, the three-Gaussian model is initialized from the trained CNN-RBF encoder and likelihood
+As before, the Gaussian-mixture model is initialized from the trained CNN-RBF encoder and likelihood
 and then fine-tuned with its different, still tied, spectral prior."""),
 code("""# RBF GPLVM with a small CNN q_phi(X | Y) and tied q(W)=p(W).
 torch.manual_seed(SEED)
@@ -573,11 +559,13 @@ cnn_rbf_history = train_model(
     beta_warmup_epochs=200, print_every=PRINT_EVERY,
 )
 
-# Three-Gaussian GPLVM with the same CNN amortization architecture and tied q(W)=p(W).
+# Gaussian-mixture GPLVM with the same CNN amortization architecture and tied q(W)=p(W).
 cnn_mixture_model = AmortizedRFFGPLVM(
     observed_dim=images.shape[1], latent_dim=LATENT_DIM,
     num_frequencies=NUM_FOURIER_SAMPLES,
-    spectral_prior=ThreeGaussianSpectralPrior(latent_dim=LATENT_DIM),
+    spectral_prior=GaussianMixtureSpectralPrior(
+        latent_dim=LATENT_DIM, num_components=NUM_GAUSSIAN_COMPONENTS,
+    ),
     encoder_type="cnn",
 ).to(device)
 cnn_mixture_model.encoder.load_state_dict(copy.deepcopy(cnn_rbf_model.encoder.state_dict()))
@@ -594,7 +582,7 @@ code("""z_cnn_rbf = latent_means(cnn_rbf_model, images)
 z_cnn_mixture = latent_means(cnn_mixture_model, images)
 z_cnn_rbf_tsne = tsne_projection(z_cnn_rbf[visualization_indices], steps=500, seed=SEED)
 z_cnn_mixture_tsne = tsne_projection(z_cnn_mixture[visualization_indices], steps=500, seed=SEED)
-for name, z in [("CNN RBF", z_cnn_rbf), ("CNN 3-Gaussian mixture", z_cnn_mixture)]:
+for name, z in [("CNN RBF", z_cnn_rbf), ("CNN Gaussian mixture", z_cnn_mixture)]:
     values = embedding_metrics(z, labels)
     print(name, {key: round(value, 3) for key, value in values.items()})
 
@@ -604,7 +592,7 @@ axes[0].plot(-np.asarray(cnn_mixture_history.loss), label="CNN mixture fine-tune
 axes[0].set(title="CNN amortization ELBO", xlabel="epoch", ylabel="ELBO / pixel")
 axes[0].legend()
 plot_embedding(z_cnn_rbf_tsne, labels[visualization_indices], "10D CNN RBF GPLVM — t-SNE view", axes[1])
-plot_embedding(z_cnn_mixture_tsne, labels[visualization_indices], "10D CNN 3-Gaussian GPLVM — t-SNE view", axes[2])
+plot_embedding(z_cnn_mixture_tsne, labels[visualization_indices], "10D CNN Gaussian-mixture GPLVM — t-SNE view", axes[2])
 fig.colorbar(axes[2].collections[0], ax=axes[1:], ticks=range(10), label="class")
 plt.tight_layout()"""),
 ]

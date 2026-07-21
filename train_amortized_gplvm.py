@@ -74,6 +74,10 @@ class SpectralPrior(nn.Module):
     def summary(self) -> dict[str, np.ndarray]:
         raise NotImplementedError
 
+    def kernel_matrix(self, x_left: Tensor, x_right: Tensor) -> Tensor:
+        """Exact stationary kernel implied by the spectral distribution."""
+        raise NotImplementedError
+
 
 class RBFSpectralPrior(SpectralPrior):
     """p(w)=N(0, diag(lengthscale^-2)) for an ARD RBF kernel."""
@@ -98,9 +102,14 @@ class RBFSpectralPrior(SpectralPrior):
     def summary(self) -> dict[str, np.ndarray]:
         return {"lengthscale": self.lengthscale.detach().cpu().numpy()}
 
+    def kernel_matrix(self, x_left: Tensor, x_right: Tensor) -> Tensor:
+        delta = x_left[:, None, :] - x_right[None, :, :]
+        squared_scaled_distance = (delta / self.lengthscale).square().sum(dim=-1)
+        return torch.exp(-0.5 * squared_scaled_distance)
 
-class ThreeGaussianSpectralPrior(SpectralPrior):
-    """Learnable symmetric mixture of three diagonal Gaussian pairs.
+
+class GaussianMixtureSpectralPrior(SpectralPrior):
+    """Learnable symmetric mixture of diagonal Gaussian pairs.
 
     Each component is 0.5 N(+mu_q, diag(s_q^2)) +
     0.5 N(-mu_q, diag(s_q^2)).  The random sign makes the spectral law
@@ -109,10 +118,10 @@ class ThreeGaussianSpectralPrior(SpectralPrior):
 
     def __init__(self, latent_dim: int, num_components: int = 3):
         super().__init__()
-        if num_components != 3:
-            raise ValueError("Part 5 uses exactly three Gaussian components")
+        if num_components < 1:
+            raise ValueError("num_components must be positive")
         means = torch.zeros(num_components, latent_dim)
-        means[:, 0] = torch.tensor([0.5, 1.5, 3.0])
+        means[:, 0] = torch.linspace(0.5, 3.0, num_components)
         self.component_means = nn.Parameter(means)
         self.raw_scales = nn.Parameter(torch.full_like(means, -0.4))
         self.logits = nn.Parameter(torch.zeros(num_components))
@@ -147,6 +156,19 @@ class ThreeGaussianSpectralPrior(SpectralPrior):
             "means": self.component_means.detach().cpu().numpy(),
             "scales": self.scales.detach().cpu().numpy(),
         }
+
+    def kernel_matrix(self, x_left: Tensor, x_right: Tensor) -> Tensor:
+        delta = x_left[:, None, :] - x_right[None, :, :]
+        scaled_squared_distance = (
+            delta.square().unsqueeze(-2) * self.scales.square()[None, None, :, :]
+        ).sum(dim=-1)
+        phase = delta @ self.component_means.T
+        component_kernels = torch.cos(phase) * torch.exp(-0.5 * scaled_squared_distance)
+        return (component_kernels * self.weights[None, None, :]).sum(dim=-1)
+
+
+# Backward-compatible name for existing notebooks using the original three-component default.
+ThreeGaussianSpectralPrior = GaussianMixtureSpectralPrior
 
 
 class VariationalGaussianSpectralPosterior(SpectralPrior):
@@ -362,6 +384,38 @@ def latent_means(
         mean, _ = model.encode(images[start : start + batch_size])
         means.append(mean.cpu())
     return torch.cat(means).numpy()
+
+
+@torch.no_grad()
+def posterior_mean_reconstructions(
+    model: AmortizedRFFGPLVM,
+    centered_training_images: Tensor,
+    training_latents: Tensor,
+    query_latents: Tensor,
+) -> Tensor:
+    """Exact-kernel GP posterior means without sampling Fourier frequencies.
+
+    This is intended for reconstruction displays at inferred latents. It uses
+    the analytic kernel corresponding to a tied spectral prior, rather than a
+    new finite random-feature draw.
+    """
+    model.eval()
+    kernel = model.outputscale * model.spectral_prior.kernel_matrix(
+        training_latents, training_latents
+    )
+    covariance = kernel + model.noise * torch.eye(
+        training_latents.shape[0], dtype=kernel.dtype, device=kernel.device
+    )
+    cholesky = torch.linalg.cholesky(
+        covariance + 1e-5 * torch.eye(
+            training_latents.shape[0], dtype=kernel.dtype, device=kernel.device
+        )
+    )
+    alpha = torch.cholesky_solve(centered_training_images, cholesky)
+    cross_kernel = model.outputscale * model.spectral_prior.kernel_matrix(
+        query_latents, training_latents
+    )
+    return cross_kernel @ alpha
 
 
 @torch.no_grad()
