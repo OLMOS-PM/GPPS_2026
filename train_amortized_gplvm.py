@@ -8,6 +8,7 @@ spectral prior; their variational posterior is deliberately tied to that prior.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isqrt
 
 import numpy as np
 import torch
@@ -34,6 +35,30 @@ class AmortizedGaussianEncoder(nn.Module):
         hidden = self.backbone(y)
         mean = self.mean_head(hidden)
         log_variance = self.log_variance_head(hidden).clamp(-8.0, 5.0)
+        return mean, log_variance
+
+
+class AmortizedCNNEncoder(nn.Module):
+    """Small convolutional diagonal-Gaussian q_phi(x_n | y_n) for square images."""
+
+    def __init__(self, observed_dim: int, latent_dim: int):
+        super().__init__()
+        image_side = isqrt(observed_dim)
+        if image_side * image_side != observed_dim:
+            raise ValueError("the CNN encoder requires square image observations")
+        self.image_side = image_side
+        self.backbone = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1), nn.ReLU(),
+            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1), nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten(),
+        )
+        self.mean_head = nn.Linear(32, latent_dim)
+        self.log_variance_head = nn.Linear(32, latent_dim)
+
+    def forward(self, y: Tensor) -> tuple[Tensor, Tensor]:
+        features = self.backbone(y.reshape(-1, 1, self.image_side, self.image_side))
+        mean = self.mean_head(features)
+        log_variance = self.log_variance_head(features).clamp(-8.0, 5.0)
         return mean, log_variance
 
 
@@ -166,7 +191,7 @@ class VariationalGaussianSpectralPosterior(SpectralPrior):
 
 
 class AmortizedRFFGPLVM(nn.Module):
-    """Bayesian GPLVM with an amortized q(X) and q(W)=p_theta(W)."""
+    """Bayesian GPLVM with an amortized q(X) and configurable q(W)."""
 
     def __init__(
         self,
@@ -174,12 +199,18 @@ class AmortizedRFFGPLVM(nn.Module):
         latent_dim: int = 2,
         num_frequencies: int = 200,
         spectral_prior: SpectralPrior | None = None,
+        encoder_type: str = "mlp",
     ):
         super().__init__()
         self.observed_dim = observed_dim
         self.latent_dim = latent_dim
         self.num_frequencies = num_frequencies
-        self.encoder = AmortizedGaussianEncoder(observed_dim, latent_dim)
+        if encoder_type == "mlp":
+            self.encoder = AmortizedGaussianEncoder(observed_dim, latent_dim)
+        elif encoder_type == "cnn":
+            self.encoder = AmortizedCNNEncoder(observed_dim, latent_dim)
+        else:
+            raise ValueError("encoder_type must be 'mlp' or 'cnn'")
         self.spectral_prior = spectral_prior or RBFSpectralPrior(latent_dim)
         self.raw_outputscale = nn.Parameter(torch.tensor(0.0))
         self.raw_noise = nn.Parameter(torch.tensor(-2.0))

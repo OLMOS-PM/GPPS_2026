@@ -529,6 +529,63 @@ change uncertainty in response to MNIST. This does not guarantee improvement on 
 adds $2LQ=4{,}000$ variational parameters and can overfit. The objective comparison is meaningful
 only when the spectral KL is included, as above; comparing reconstruction terms alone would
 unfairly favor the learned posterior."""),
+md(r"""## 9. Tied spectral posteriors with a CNN amortization network
+
+We now repeat the RBF and three-Gaussian experiments with $q(W)=p_\theta(W)$, replacing the
+two-hidden-layer dense encoder for $q_\phi(X\mid Y)$ with a small convolutional encoder. It
+reshapes each flattened MNIST image to $1\times28\times28$, uses two strided convolutional layers
+with 16 and 32 channels, then produces the latent Gaussian mean and diagonal log-variance. The
+GP likelihood, the number of Fourier features, and all shared training settings are unchanged.
+
+As before, the three-Gaussian model is initialized from the trained CNN-RBF encoder and likelihood
+and then fine-tuned with its different, still tied, spectral prior."""),
+code("""# RBF GPLVM with a small CNN q_phi(X | Y) and tied q(W)=p(W).
+torch.manual_seed(SEED)
+cnn_rbf_model = AmortizedRFFGPLVM(
+    observed_dim=images.shape[1], latent_dim=LATENT_DIM,
+    num_frequencies=NUM_FOURIER_SAMPLES,
+    spectral_prior=RBFSpectralPrior(latent_dim=LATENT_DIM),
+    encoder_type="cnn",
+).to(device)
+cnn_rbf_history = train_model(
+    cnn_rbf_model, images, epochs=NUM_EPOCHS, learning_rate=2e-3,
+    beta_warmup_epochs=200, print_every=PRINT_EVERY,
+)
+
+# Three-Gaussian GPLVM with the same CNN amortization architecture and tied q(W)=p(W).
+cnn_mixture_model = AmortizedRFFGPLVM(
+    observed_dim=images.shape[1], latent_dim=LATENT_DIM,
+    num_frequencies=NUM_FOURIER_SAMPLES,
+    spectral_prior=ThreeGaussianSpectralPrior(latent_dim=LATENT_DIM),
+    encoder_type="cnn",
+).to(device)
+cnn_mixture_model.encoder.load_state_dict(copy.deepcopy(cnn_rbf_model.encoder.state_dict()))
+with torch.no_grad():
+    cnn_mixture_model.raw_outputscale.copy_(cnn_rbf_model.raw_outputscale)
+    cnn_mixture_model.raw_noise.copy_(cnn_rbf_model.raw_noise)
+cnn_mixture_history = train_model(
+    cnn_mixture_model, images, epochs=NUM_EPOCHS, learning_rate=1e-3,
+    beta_warmup_epochs=1, print_every=PRINT_EVERY,
+)
+print("CNN RBF parameters:", cnn_rbf_model.spectral_prior.summary())
+print("CNN mixture parameters:", cnn_mixture_model.spectral_prior.summary())"""),
+code("""z_cnn_rbf = latent_means(cnn_rbf_model, images)
+z_cnn_mixture = latent_means(cnn_mixture_model, images)
+z_cnn_rbf_tsne = tsne_projection(z_cnn_rbf[visualization_indices], steps=500, seed=SEED)
+z_cnn_mixture_tsne = tsne_projection(z_cnn_mixture[visualization_indices], steps=500, seed=SEED)
+for name, z in [("CNN RBF", z_cnn_rbf), ("CNN 3-Gaussian mixture", z_cnn_mixture)]:
+    values = embedding_metrics(z, labels)
+    print(name, {key: round(value, 3) for key, value in values.items()})
+
+fig, axes = plt.subplots(1, 3, figsize=(16, 4.5))
+axes[0].plot(-np.asarray(cnn_rbf_history.loss), label="CNN RBF")
+axes[0].plot(-np.asarray(cnn_mixture_history.loss), label="CNN mixture fine-tune")
+axes[0].set(title="CNN amortization ELBO", xlabel="epoch", ylabel="ELBO / pixel")
+axes[0].legend()
+plot_embedding(z_cnn_rbf_tsne, labels[visualization_indices], "10D CNN RBF GPLVM — t-SNE view", axes[1])
+plot_embedding(z_cnn_mixture_tsne, labels[visualization_indices], "10D CNN 3-Gaussian GPLVM — t-SNE view", axes[2])
+fig.colorbar(axes[2].collections[0], ax=axes[1:], ticks=range(10), label="digit")
+plt.tight_layout()"""),
 ]
 
 notebook = {
