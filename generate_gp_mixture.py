@@ -29,13 +29,13 @@ Example
 python generate_gp_mixture.py --n-curves 300 --output gp_mixture.npz
 """
 
-from __future__ import annotations
+from __future__ import annotations # This package is used for forward references in type hints, allowing the use of types that are defined later in the code.
 
 import argparse
 from pathlib import Path
 
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import NDArray #NDArray is a type hint for numpy arrays, allowing for more precise type checking and code clarity.
 
 
 FloatArray = NDArray[np.float64]
@@ -103,11 +103,12 @@ def generate_gp_mixture(
     frequencies = 2.0 * np.pi / periods
     curves = np.empty((n_curves, x.size), dtype=np.float64)
 
-    # Factorize each component covariance once, then sample all curves assigned
+    # Cholesky factorize each component covariance once, then sample all curves assigned
     # to that component in a single matrix multiplication.
     for component, (frequency, lengthscale) in enumerate(
         zip(frequencies, lengthscales)
     ):
+        # We first check if any curves are assigned to this component.  If not, we skip the Cholesky factorization.
         indices = np.flatnonzero(labels == component)
         if indices.size == 0:
             continue
@@ -136,7 +137,7 @@ def _positive_floats(values: list[str], name: str) -> FloatArray:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__) #__doc__ is a special variable in Python that contains the docstring of the module, class, or function. In this case, it provides a description for the command-line interface of the script.
     parser.add_argument("--output", type=Path, default=Path("gp_mixture.npz"))
     parser.add_argument("--n-curves", type=int, default=300)
     parser.add_argument("--n-points", type=int, default=200)
