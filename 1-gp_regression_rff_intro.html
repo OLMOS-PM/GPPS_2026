@@ -8332,8 +8332,17 @@ step 120 | NLL=-0.2111 | ell=0.0564 | scale=1.8534 | noise=0.03699
 </li>
 </ol>
 <p>This condition is necessary because $\mathbf c^\top K\mathbf c$ is the variance of the linear combination $\sum_i c_i f(x_i)$, and a variance cannot be negative. The word <em>semidefinite</em> allows this variance to be zero for some nonzero $\mathbf c$; a strictly positive-definite kernel requires it to be positive for every nonzero $\mathbf c$ (under the appropriate conditions on the inputs).</p>
-<h3 id="Bochner's-theorem-for-stationary-kernels">Bochner's theorem for stationary kernels<a class="anchor-link" href="#Bochner's-theorem-for-stationary-kernels">¶</a></h3><p>Bochner's theorem states that a continuous stationary function is a valid positive-semidefinite kernel if and only if it is the Fourier transform of a finite non-negative measure. For a normalized kernel with $k(0)=1$, write that measure as a probability density $p(\omega)$ over the spectral space $\omega\in\mathbb R^d$, where $d$ is the dimension of $x$. If $\tau = x_i - x_j$:</p>
-<p>$$k(\tau)=\int_{\mathbb R^d}e^{i\omega^\top\tau}p(\omega)d\omega=\mathbb E_{\omega\sim p}\left[e^{i\omega^\top\tau}\right].$$</p>
+<h4 id="Kohlberg%E2%80%93Bochner-theorem-and-the-spectral-density">Kohlberg–Bochner theorem and the spectral density<a class="anchor-link" href="#Kohlberg%E2%80%93Bochner-theorem-and-the-spectral-density">¶</a></h4><p>Bochner's theorem states that a continuous stationary function $k(\tau)$ is a valid positive-semidefinite covariance kernel if and only if it is the Fourier transform of a finite non-negative measure $\mu$ on the spectral domain. In this notebook, we focus on kernels for which the spectral measure is absolutely continuous and therefore admits a spectral density $p(\omega)$. For a normalized kernel satisfying $k(0)=1$, this density integrates to one and can be interpreted as a probability density over frequencies $\omega\in\mathbb R^d$.</p>
+<p>If $\tau=x_i-x_j$, then</p>
+<p>$$
+k(\tau)
+=
+\int_{\mathbb R^d}
+e^{i\omega^\top\tau}p(\omega)\,d\omega
+=
+\mathbb E_{\omega\sim p}
+\left[e^{i\omega^\top\tau}\right].
+$$</p>
 <p>The requirement $p(\omega)\geq0$ guarantees positive semidefiniteness. Now expand the complex exponential using <strong>Euler's formula</strong>:</p>
 <p>$$e^{i\omega^\top\tau}=\cos(\omega^\top\tau)+i\sin(\omega^\top\tau).$$</p>
 <p>Therefore,</p>
