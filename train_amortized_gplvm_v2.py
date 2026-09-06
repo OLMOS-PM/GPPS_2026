@@ -9,10 +9,28 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from train_amortized_gplvm import AmortizedGaussianEncoder
-
-
 Tensor = torch.Tensor
+
+
+class AmortizedGaussianEncoder(nn.Module):
+    """Shared diagonal-Gaussian encoder q_phi(x_n | y_n)."""
+
+    def __init__(self, observed_dim: int, latent_dim: int, hidden_dim: int = 256):
+        super().__init__()
+        self.backbone = nn.Sequential(
+            nn.Linear(observed_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+        )
+        self.mean_head = nn.Linear(hidden_dim, latent_dim)
+        self.log_variance_head = nn.Linear(hidden_dim, latent_dim)
+
+    def forward(self, y: Tensor) -> tuple[Tensor, Tensor]:
+        hidden = self.backbone(y)
+        mean = self.mean_head(hidden)
+        log_variance = self.log_variance_head(hidden).clamp(-8.0, 5.0)
+        return mean, log_variance
 
 
 def _paired_features(x: Tensor, frequencies: Tensor, scale: Tensor | float) -> Tensor:
@@ -194,6 +212,63 @@ class PairedRFFGPLVM(nn.Module):
             "kl_x_per_example": float(kl_x.detach() / y.shape[0]),
             "kl_w": 0.0,
         }
+
+
+@dataclass
+class TrainingHistory:
+    loss: list[float]
+    log_likelihood_per_pixel: list[float]
+    kl_x_per_example: list[float]
+    kl_w: list[float]
+
+
+def train_model(
+    model: PairedRFFGPLVM,
+    images: Tensor,
+    *,
+    epochs: int = 1000,
+    learning_rate: float = 2e-3,
+    beta_warmup_epochs: int = 200,
+    print_every: int = 100,
+) -> TrainingHistory:
+    """Optimize a one-sample Monte Carlo estimate of the variational ELBO."""
+    if epochs <= 0 or learning_rate <= 0:
+        raise ValueError("epochs and learning_rate must be positive")
+    if print_every <= 0:
+        raise ValueError("print_every must be positive")
+    model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    history = TrainingHistory([], [], [], [])
+    for epoch in range(1, epochs + 1):
+        beta = min(1.0, epoch / max(1, beta_warmup_epochs))
+        optimizer.zero_grad(set_to_none=True)
+        loss, stats = model.negative_elbo(images, beta=beta)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 10.0)
+        optimizer.step()
+        for key in ("loss", "log_likelihood_per_pixel", "kl_x_per_example", "kl_w"):
+            getattr(history, key).append(stats[key])
+        if epoch == 1 or epoch % print_every == 0 or epoch == epochs:
+            print(
+                f"epoch {epoch:4d} | loss {stats['loss']:.4f} | "
+                f"log p/pixel {stats['log_likelihood_per_pixel']:.4f} | "
+                f"KL(X)/example {stats['kl_x_per_example']:.3f} | "
+                f"KL(W) {stats['kl_w']:.3f}"
+            )
+    return history
+
+
+@torch.no_grad()
+def latent_means(
+    model: PairedRFFGPLVM, images: Tensor, batch_size: int = 2048
+) -> np.ndarray:
+    """Encode images into posterior means in bounded-memory chunks."""
+    model.eval()
+    means = []
+    for start in range(0, images.shape[0], batch_size):
+        mean, _ = model.encode(images[start : start + batch_size])
+        means.append(mean.cpu())
+    return torch.cat(means).numpy()
 
 
 @dataclass
