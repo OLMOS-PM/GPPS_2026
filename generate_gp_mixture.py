@@ -83,6 +83,7 @@ def generate_gp_mixture(
     lengthscales = np.asarray(lengthscales, dtype=np.float64)
     mixture_weights = np.asarray(mixture_weights, dtype=np.float64)
 
+    # Validate inputs
     if x.ndim != 1 or x.size < 2:
         raise ValueError("x must be a one-dimensional array with at least two points")
     if n_curves <= 0:
@@ -129,6 +130,7 @@ def generate_gp_mixture(
     return curves, labels.astype(np.int64, copy=False)
 
 
+# Check that the provided values are positive floats and return them as a numpy array. If any value is not positive, raise a ValueError with a message indicating which parameter is invalid.
 def _positive_floats(values: list[str], name: str) -> FloatArray:
     result = np.asarray(values, dtype=np.float64)
     if result.ndim != 1 or result.size == 0 or np.any(result <= 0):
