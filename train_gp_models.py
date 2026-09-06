@@ -268,7 +268,7 @@ def build_rbf_gp(
     base_kernel.initialize(lengthscale=initial_lengthscale)
     model = SharedHyperparameterGP(train_x, train_curves, likelihood, base_kernel)
     model.covar_module.initialize(outputscale=initial_outputscale)
-    return model, likelihood
+    return model.to(train_x.device), likelihood.to(train_x.device)
 
 
 def build_rff_gp(
@@ -298,7 +298,7 @@ def build_rff_gp(
     base_kernel.initialize(lengthscale=initial_lengthscale)
     model = SharedHyperparameterGP(train_x, train_curves, likelihood, base_kernel)
     model.covar_module.initialize(outputscale=initial_outputscale)
-    return model, likelihood
+    return model.to(train_x.device), likelihood.to(train_x.device)
 
 
 def build_symmetric_spectral_mixture_rff_gp(
@@ -326,7 +326,7 @@ def build_symmetric_spectral_mixture_rff_gp(
     )
     model = SharedHyperparameterGP(train_x, train_curves, likelihood, base_kernel)
     model.covar_module.initialize(outputscale=initial_outputscale)
-    return model, likelihood
+    return model.to(train_x.device), likelihood.to(train_x.device)
 
 
 def train_shared_gp(

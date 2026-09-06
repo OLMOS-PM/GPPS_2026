@@ -108,22 +108,21 @@ class SymmetrizedImplicitSpectralKernel(gpytorch.kernels.Kernel):
         generator: Optional[torch.Generator] = None,
     ) -> None:
         """Draw fresh Gaussian inputs and Rademacher signs in place."""
+        # Draw on CPU so seeded resampling also works with Apple's MPS backend.
         self.base_samples.copy_(
             torch.randn(
                 self.base_samples.shape,
                 dtype=self.base_samples.dtype,
-                device=self.base_samples.device,
                 generator=generator,
-            )
+            ).to(self.base_samples.device)
         )
         fresh_signs = 2 * torch.randint(
             0,
             2,
             self.signs.shape,
-            device=self.signs.device,
             generator=generator,
         ) - 1
-        self.signs.copy_(fresh_signs.to(dtype=self.signs.dtype))
+        self.signs.copy_(fresh_signs.to(device=self.signs.device, dtype=self.signs.dtype))
 
     def frequency_l2(self) -> Tensor:
         """Mean squared Euclidean norm of the sampled frequency vectors."""
@@ -157,22 +156,21 @@ class SymmetrizedImplicitSpectralKernel(gpytorch.kernels.Kernel):
         if num_samples <= 0:
             raise ValueError("num_samples must be positive")
         parameter = next(self.parameters())
-        random_generator = torch.Generator(device=parameter.device)
+        random_generator = torch.Generator(device="cpu")
         random_generator.manual_seed(seed)
         base = torch.randn(
             num_samples,
             self.noise_dimension,
             generator=random_generator,
             dtype=parameter.dtype,
-            device=parameter.device,
-        )
+        ).to(parameter.device)
         signs = 2 * torch.randint(
             0,
             2,
             (num_samples, 1),
             generator=random_generator,
-            device=parameter.device,
         ) - 1
+        signs = signs.to(parameter.device)
         return signs.to(dtype=parameter.dtype) * self.unsigned_frequencies(base)
 
 
@@ -200,6 +198,7 @@ def as_tensors(
     x: np.ndarray,
     curves: np.ndarray,
     dtype: torch.dtype = torch.float32,
+    device: Optional[torch.device] = None,
 ) -> tuple[Tensor, Tensor]:
     x_array = np.asarray(x)
     curves_array = np.asarray(curves)
@@ -209,8 +208,8 @@ def as_tensors(
         raise ValueError("x must have shape (N,) or (N, D)")
     if curves_array.ndim != 2 or curves_array.shape[1] != x_array.shape[0]:
         raise ValueError("curves must have shape (n_curves, N)")
-    return torch.as_tensor(x_array, dtype=dtype), torch.as_tensor(
-        curves_array, dtype=dtype
+    return torch.as_tensor(x_array, dtype=dtype, device=device), torch.as_tensor(
+        curves_array, dtype=dtype, device=device
     )
 
 
@@ -240,7 +239,7 @@ def build_implicit_spectral_gp(
     )
     model = ImplicitSpectralGP(train_x, train_curves, likelihood, kernel)
     model.covar_module.initialize(outputscale=initial_outputscale)
-    return model, likelihood
+    return model.to(train_x.device), likelihood.to(train_x.device)
 
 
 @dataclass(frozen=True)
@@ -274,7 +273,7 @@ def train_implicit_spectral_gp(
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
     kernel = model.covar_module.base_kernel
-    random_generator = torch.Generator(device=kernel.base_samples.device)
+    random_generator = torch.Generator(device="cpu")
     random_generator.manual_seed(resampling_seed)
     objective_history: list[float] = []
     nll_history: list[float] = []
