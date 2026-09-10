@@ -146,7 +146,7 @@ class PairedImplicitRFFKernel(gpytorch.kernels.Kernel):
         noise_dimension: int = 8,
         num_pairs: int = 240,
         hidden_features: Sequence[int] = (32, 32),
-        initial_frequency_scale: float = 5.0,
+        initial_frequency_scale: float = 5.0, #This is the initial scale for the frequencies, namely the initial value for the exponential of the raw_frequency_scale parameter.
         seed: int = 151,
     ) -> None:
         super().__init__()
