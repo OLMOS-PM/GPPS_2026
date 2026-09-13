@@ -7802,7 +7802,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Gaussian-Processes-Summer-School">Gaussian Processes Summer School<a class="anchor-link" href="#Gaussian-Processes-Summer-School">¶</a></h1><h2 id="Part-2:-Spectral-Mixtures">Part 2: Spectral Mixtures<a class="anchor-link" href="#Part-2:-Spectral-Mixtures">¶</a></h2><p><a href="https://www.uc3m.es/"><img alt="Universidad Carlos III de Madrid" src="./uc3m.png" width="520"/></a></p>
+<h1 id="Gaussian-Processes-Summer-School">Gaussian Processes Summer School<a class="anchor-link" href="#Gaussian-Processes-Summer-School">¶</a></h1><h2 id="Part-2:-Spectral-Mixtures">Part 2: Spectral Mixtures<a class="anchor-link" href="#Part-2:-Spectral-Mixtures">¶</a></h2><p><a href="https://www.uc3m.es/"><img alt="Universidad Carlos III de Madrid" src="./scripts_and_files/uc3m.png" width="520"/></a></p>
 <p><strong>Author:</strong> <a href="https://olmos-pm.github.io/">Pablo M. Olmos</a></p>
 <p><strong>Email:</strong> <a href="mailto:pamartin@ing.uc3m.es">pamartin@ing.uc3m.es</a></p>
 <hr/>
@@ -7824,7 +7824,7 @@ a.anchor-link {
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">display</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">generate_gp_mixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_gp_mixture</span><span class="p">,</span> <span class="n">locally_periodic_kernel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scripts_and_files.generate_gp_mixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_gp_mixture</span><span class="p">,</span> <span class="n">locally_periodic_kernel</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s2">"seaborn-v0_8-whitegrid"</span><span class="p">)</span>
 </pre></div>
@@ -8222,7 +8222,7 @@ Component 2: T=0.25, omega=25.133, curves=98
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Import the functions from train_gp_models.py that are used in this notebook</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">train_gp_models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scripts_and_files.train_gp_models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">as_gp_tensors</span><span class="p">,</span>
     <span class="n">build_rff_gp</span><span class="p">,</span>
     <span class="n">build_symmetric_spectral_mixture_rff_gp</span><span class="p">,</span>
@@ -8625,13 +8625,13 @@ step  350/400 | loss=-0.6544 | spectral_means=[ 5.504 12.677 24.945] | variances
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
 <style type="text/css">
 </style>
-<table id="T_651d6">
+<table id="T_484fd">
 <caption>Population fit comparison</caption>
 <thead>
 <tr>
 <th class="blank level0"> </th>
-<th class="col_heading level0 col0" id="T_651d6_level0_col0">train NLL</th>
-<th class="col_heading level0 col1" id="T_651d6_level0_col1">test NLL</th>
+<th class="col_heading level0 col0" id="T_484fd_level0_col0">train NLL</th>
+<th class="col_heading level0 col1" id="T_484fd_level0_col1">test NLL</th>
 </tr>
 <tr>
 <th class="index_name level0">model</th>
@@ -8641,19 +8641,19 @@ step  350/400 | loss=-0.6544 | spectral_means=[ 5.504 12.677 24.945] | variances
 </thead>
 <tbody>
 <tr>
-<th class="row_heading level0 row0" id="T_651d6_level0_row0">RBF RFF</th>
-<td class="data row0 col0" id="T_651d6_row0_col0">0.75267</td>
-<td class="data row0 col1" id="T_651d6_row0_col1">0.76609</td>
+<th class="row_heading level0 row0" id="T_484fd_level0_row0">RBF RFF</th>
+<td class="data row0 col0" id="T_484fd_row0_col0">0.75267</td>
+<td class="data row0 col1" id="T_484fd_row0_col1">0.76609</td>
 </tr>
 <tr>
-<th class="row_heading level0 row1" id="T_651d6_level0_row1">Single locally periodic RFF</th>
-<td class="data row1 col0" id="T_651d6_row1_col0">2.35165</td>
-<td class="data row1 col1" id="T_651d6_row1_col1">2.55332</td>
+<th class="row_heading level0 row1" id="T_484fd_level0_row1">Single locally periodic RFF</th>
+<td class="data row1 col0" id="T_484fd_row1_col0">2.35165</td>
+<td class="data row1 col1" id="T_484fd_row1_col1">2.55332</td>
 </tr>
 <tr>
-<th class="row_heading level0 row2" id="T_651d6_level0_row2">Three-component spectral RFF</th>
-<td class="data row2 col0" id="T_651d6_row2_col0">-0.67927</td>
-<td class="data row2 col1" id="T_651d6_row2_col1">-0.70180</td>
+<th class="row_heading level0 row2" id="T_484fd_level0_row2">Three-component spectral RFF</th>
+<td class="data row2 col0" id="T_484fd_row2_col0">-0.67927</td>
+<td class="data row2 col1" id="T_484fd_row2_col1">-0.70180</td>
 </tr>
 </tbody>
 </table>

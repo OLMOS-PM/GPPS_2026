@@ -7802,7 +7802,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Gaussian-Processes-Summer-School">Gaussian Processes Summer School<a class="anchor-link" href="#Gaussian-Processes-Summer-School">¶</a></h1><h2 id="Part-6:-Non-stationary-Spectral-GPLVMs">Part 6: Non-stationary Spectral GPLVMs<a class="anchor-link" href="#Part-6:-Non-stationary-Spectral-GPLVMs">¶</a></h2><p><a href="https://www.uc3m.es/"><img alt="Universidad Carlos III de Madrid" src="./uc3m.png" width="520"/></a></p>
+<h1 id="Gaussian-Processes-Summer-School">Gaussian Processes Summer School<a class="anchor-link" href="#Gaussian-Processes-Summer-School">¶</a></h1><h2 id="Part-6:-Non-stationary-Spectral-GPLVMs">Part 6: Non-stationary Spectral GPLVMs<a class="anchor-link" href="#Part-6:-Non-stationary-Spectral-GPLVMs">¶</a></h2><p><a href="https://www.uc3m.es/"><img alt="Universidad Carlos III de Madrid" src="./scripts_and_files/uc3m.png" width="520"/></a></p>
 <p><strong>Author:</strong> <a href="https://olmos-pm.github.io/">Pablo M. Olmos</a></p>
 <p><strong>Email:</strong> <a href="mailto:pamartin@ing.uc3m.es">pamartin@ing.uc3m.es</a></p>
 <hr/>
@@ -7882,7 +7882,7 @@ over individual frequencies.</p>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [19]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [26]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
@@ -8012,12 +8012,12 @@ $$</p>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [20]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [27]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">gzip</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">struct</span> 
+<span class="kn">import</span><span class="w"> </span><span class="nn">struct</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
@@ -8034,7 +8034,7 @@ $$</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">GridSearchCV</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.neighbors</span><span class="w"> </span><span class="kn">import</span> <span class="n">KNeighborsClassifier</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">train_amortized_gplvm_v2</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scripts_and_files.train_amortized_gplvm_v2</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">ImplicitNeuralSpectralPrior</span><span class="p">,</span>
     <span class="n">PairedLocallyPeriodicMixturePrior</span><span class="p">,</span>
     <span class="n">PairedRBFSpectralPrior</span><span class="p">,</span>
@@ -8045,7 +8045,7 @@ $$</p>
     <span class="n">latent_means</span><span class="p">,</span>
     <span class="n">train_model</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">train_amortized_gplvm_part6</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scripts_and_files.train_amortized_gplvm_part6</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">CorrelatedGaussianJointSpectralPrior</span><span class="p">,</span>
     <span class="n">CorrelatedGaussianMixtureJointSpectralPrior</span><span class="p">,</span>
     <span class="n">ImplicitJointSpectralPrior</span><span class="p">,</span>
@@ -8086,7 +8086,7 @@ $$</p>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [21]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [28]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Main tunable settings</span>
@@ -8152,7 +8152,7 @@ $$</p>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [22]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [29]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">DATASETS</span> <span class="o">=</span> <span class="p">{</span>
@@ -8244,7 +8244,7 @@ $$</p>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [23]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [30]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">MODEL_SPECS</span> <span class="o">=</span> <span class="p">[</span>
@@ -8496,7 +8496,7 @@ $$</p>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [24]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [31]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">mnist_experiment</span> <span class="o">=</span> <span class="n">run_dataset_experiments</span><span class="p">(</span><span class="s2">"MNIST"</span><span class="p">,</span> <span class="n">SEED</span><span class="p">)</span>
@@ -8600,7 +8600,7 @@ best k=1 | CV accuracy=0.9116 | test accuracy=0.8560 | AMI=0.6654 | ARI=0.5733 |
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [25]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [32]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">comparison_rows</span> <span class="o">=</span> <span class="p">[]</span>
@@ -8697,136 +8697,136 @@ best k=1 | CV accuracy=0.9116 | test accuracy=0.8560 | AMI=0.6654 | ARI=0.5733 |
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
 <style type="text/css">
 </style>
-<table id="T_9564a">
+<table id="T_4b29d">
 <caption>Stationary and non-stationary spectral GPLVM comparison</caption>
 <thead>
 <tr>
 <th class="blank level0"> </th>
-<th class="col_heading level0 col0" id="T_9564a_level0_col0">dataset</th>
-<th class="col_heading level0 col1" id="T_9564a_level0_col1">spectral model</th>
-<th class="col_heading level0 col2" id="T_9564a_level0_col2">kernel family</th>
-<th class="col_heading level0 col3" id="T_9564a_level0_col3">stationarity</th>
-<th class="col_heading level0 col4" id="T_9564a_level0_col4">latent dimension K</th>
-<th class="col_heading level0 col5" id="T_9564a_level0_col5">frequency samples L</th>
-<th class="col_heading level0 col6" id="T_9564a_level0_col6">selected k</th>
-<th class="col_heading level0 col7" id="T_9564a_level0_col7">CV accuracy</th>
-<th class="col_heading level0 col8" id="T_9564a_level0_col8">test accuracy</th>
-<th class="col_heading level0 col9" id="T_9564a_level0_col9">AMI mean</th>
-<th class="col_heading level0 col10" id="T_9564a_level0_col10">AMI std</th>
-<th class="col_heading level0 col11" id="T_9564a_level0_col11">ARI mean</th>
-<th class="col_heading level0 col12" id="T_9564a_level0_col12">ARI std</th>
-<th class="col_heading level0 col13" id="T_9564a_level0_col13">class silhouette</th>
-<th class="col_heading level0 col14" id="T_9564a_level0_col14">final negative ELBO/pixel</th>
+<th class="col_heading level0 col0" id="T_4b29d_level0_col0">dataset</th>
+<th class="col_heading level0 col1" id="T_4b29d_level0_col1">spectral model</th>
+<th class="col_heading level0 col2" id="T_4b29d_level0_col2">kernel family</th>
+<th class="col_heading level0 col3" id="T_4b29d_level0_col3">stationarity</th>
+<th class="col_heading level0 col4" id="T_4b29d_level0_col4">latent dimension K</th>
+<th class="col_heading level0 col5" id="T_4b29d_level0_col5">frequency samples L</th>
+<th class="col_heading level0 col6" id="T_4b29d_level0_col6">selected k</th>
+<th class="col_heading level0 col7" id="T_4b29d_level0_col7">CV accuracy</th>
+<th class="col_heading level0 col8" id="T_4b29d_level0_col8">test accuracy</th>
+<th class="col_heading level0 col9" id="T_4b29d_level0_col9">AMI mean</th>
+<th class="col_heading level0 col10" id="T_4b29d_level0_col10">AMI std</th>
+<th class="col_heading level0 col11" id="T_4b29d_level0_col11">ARI mean</th>
+<th class="col_heading level0 col12" id="T_4b29d_level0_col12">ARI std</th>
+<th class="col_heading level0 col13" id="T_4b29d_level0_col13">class silhouette</th>
+<th class="col_heading level0 col14" id="T_4b29d_level0_col14">final negative ELBO/pixel</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<th class="row_heading level0 row0" id="T_9564a_level0_row0">0</th>
-<td class="data row0 col0" id="T_9564a_row0_col0">MNIST</td>
-<td class="data row0 col1" id="T_9564a_row0_col1">Gaussian | stationary RBF</td>
-<td class="data row0 col2" id="T_9564a_row0_col2">Gaussian</td>
-<td class="data row0 col3" id="T_9564a_row0_col3">stationary</td>
-<td class="data row0 col4" id="T_9564a_row0_col4">5</td>
-<td class="data row0 col5" id="T_9564a_row0_col5">120</td>
-<td class="data row0 col6" id="T_9564a_row0_col6">1</td>
-<td class="data row0 col7" id="T_9564a_row0_col7">0.9134</td>
-<td class="data row0 col8" id="T_9564a_row0_col8">0.8700</td>
-<td class="data row0 col9" id="T_9564a_row0_col9">0.5953</td>
-<td class="data row0 col10" id="T_9564a_row0_col10">0.0018</td>
-<td class="data row0 col11" id="T_9564a_row0_col11">0.4828</td>
-<td class="data row0 col12" id="T_9564a_row0_col12">0.0035</td>
-<td class="data row0 col13" id="T_9564a_row0_col13">0.1914</td>
-<td class="data row0 col14" id="T_9564a_row0_col14">-0.38127</td>
+<th class="row_heading level0 row0" id="T_4b29d_level0_row0">0</th>
+<td class="data row0 col0" id="T_4b29d_row0_col0">MNIST</td>
+<td class="data row0 col1" id="T_4b29d_row0_col1">Gaussian | stationary RBF</td>
+<td class="data row0 col2" id="T_4b29d_row0_col2">Gaussian</td>
+<td class="data row0 col3" id="T_4b29d_row0_col3">stationary</td>
+<td class="data row0 col4" id="T_4b29d_row0_col4">5</td>
+<td class="data row0 col5" id="T_4b29d_row0_col5">120</td>
+<td class="data row0 col6" id="T_4b29d_row0_col6">1</td>
+<td class="data row0 col7" id="T_4b29d_row0_col7">0.9134</td>
+<td class="data row0 col8" id="T_4b29d_row0_col8">0.8700</td>
+<td class="data row0 col9" id="T_4b29d_row0_col9">0.5953</td>
+<td class="data row0 col10" id="T_4b29d_row0_col10">0.0018</td>
+<td class="data row0 col11" id="T_4b29d_row0_col11">0.4828</td>
+<td class="data row0 col12" id="T_4b29d_row0_col12">0.0035</td>
+<td class="data row0 col13" id="T_4b29d_row0_col13">0.1914</td>
+<td class="data row0 col14" id="T_4b29d_row0_col14">-0.38127</td>
 </tr>
 <tr>
-<th class="row_heading level0 row1" id="T_9564a_level0_row1">1</th>
-<td class="data row1 col0" id="T_9564a_row1_col0">MNIST</td>
-<td class="data row1 col1" id="T_9564a_row1_col1">Gaussian | paired non-stationary</td>
-<td class="data row1 col2" id="T_9564a_row1_col2">Gaussian</td>
-<td class="data row1 col3" id="T_9564a_row1_col3">non-stationary</td>
-<td class="data row1 col4" id="T_9564a_row1_col4">5</td>
-<td class="data row1 col5" id="T_9564a_row1_col5">120</td>
-<td class="data row1 col6" id="T_9564a_row1_col6">1</td>
-<td class="data row1 col7" id="T_9564a_row1_col7">0.9202</td>
-<td class="data row1 col8" id="T_9564a_row1_col8">0.8860</td>
-<td class="data row1 col9" id="T_9564a_row1_col9">0.5902</td>
-<td class="data row1 col10" id="T_9564a_row1_col10">0.0003</td>
-<td class="data row1 col11" id="T_9564a_row1_col11">0.4705</td>
-<td class="data row1 col12" id="T_9564a_row1_col12">0.0004</td>
-<td class="data row1 col13" id="T_9564a_row1_col13">0.1917</td>
-<td class="data row1 col14" id="T_9564a_row1_col14">-0.38875</td>
+<th class="row_heading level0 row1" id="T_4b29d_level0_row1">1</th>
+<td class="data row1 col0" id="T_4b29d_row1_col0">MNIST</td>
+<td class="data row1 col1" id="T_4b29d_row1_col1">Gaussian | paired non-stationary</td>
+<td class="data row1 col2" id="T_4b29d_row1_col2">Gaussian</td>
+<td class="data row1 col3" id="T_4b29d_row1_col3">non-stationary</td>
+<td class="data row1 col4" id="T_4b29d_row1_col4">5</td>
+<td class="data row1 col5" id="T_4b29d_row1_col5">120</td>
+<td class="data row1 col6" id="T_4b29d_row1_col6">1</td>
+<td class="data row1 col7" id="T_4b29d_row1_col7">0.9202</td>
+<td class="data row1 col8" id="T_4b29d_row1_col8">0.8860</td>
+<td class="data row1 col9" id="T_4b29d_row1_col9">0.5902</td>
+<td class="data row1 col10" id="T_4b29d_row1_col10">0.0003</td>
+<td class="data row1 col11" id="T_4b29d_row1_col11">0.4705</td>
+<td class="data row1 col12" id="T_4b29d_row1_col12">0.0004</td>
+<td class="data row1 col13" id="T_4b29d_row1_col13">0.1917</td>
+<td class="data row1 col14" id="T_4b29d_row1_col14">-0.38875</td>
 </tr>
 <tr>
-<th class="row_heading level0 row2" id="T_9564a_level0_row2">2</th>
-<td class="data row2 col0" id="T_9564a_row2_col0">MNIST</td>
-<td class="data row2 col1" id="T_9564a_row2_col1">5-Gaussian mixture | stationary</td>
-<td class="data row2 col2" id="T_9564a_row2_col2">Gaussian mixture</td>
-<td class="data row2 col3" id="T_9564a_row2_col3">stationary</td>
-<td class="data row2 col4" id="T_9564a_row2_col4">5</td>
-<td class="data row2 col5" id="T_9564a_row2_col5">120</td>
-<td class="data row2 col6" id="T_9564a_row2_col6">1</td>
-<td class="data row2 col7" id="T_9564a_row2_col7">0.9227</td>
-<td class="data row2 col8" id="T_9564a_row2_col8">0.8520</td>
-<td class="data row2 col9" id="T_9564a_row2_col9">0.5940</td>
-<td class="data row2 col10" id="T_9564a_row2_col10">0.0017</td>
-<td class="data row2 col11" id="T_9564a_row2_col11">0.4764</td>
-<td class="data row2 col12" id="T_9564a_row2_col12">0.0026</td>
-<td class="data row2 col13" id="T_9564a_row2_col13">0.1801</td>
-<td class="data row2 col14" id="T_9564a_row2_col14">-0.39303</td>
+<th class="row_heading level0 row2" id="T_4b29d_level0_row2">2</th>
+<td class="data row2 col0" id="T_4b29d_row2_col0">MNIST</td>
+<td class="data row2 col1" id="T_4b29d_row2_col1">5-Gaussian mixture | stationary</td>
+<td class="data row2 col2" id="T_4b29d_row2_col2">Gaussian mixture</td>
+<td class="data row2 col3" id="T_4b29d_row2_col3">stationary</td>
+<td class="data row2 col4" id="T_4b29d_row2_col4">5</td>
+<td class="data row2 col5" id="T_4b29d_row2_col5">120</td>
+<td class="data row2 col6" id="T_4b29d_row2_col6">1</td>
+<td class="data row2 col7" id="T_4b29d_row2_col7">0.9227</td>
+<td class="data row2 col8" id="T_4b29d_row2_col8">0.8520</td>
+<td class="data row2 col9" id="T_4b29d_row2_col9">0.5940</td>
+<td class="data row2 col10" id="T_4b29d_row2_col10">0.0017</td>
+<td class="data row2 col11" id="T_4b29d_row2_col11">0.4764</td>
+<td class="data row2 col12" id="T_4b29d_row2_col12">0.0026</td>
+<td class="data row2 col13" id="T_4b29d_row2_col13">0.1801</td>
+<td class="data row2 col14" id="T_4b29d_row2_col14">-0.39303</td>
 </tr>
 <tr>
-<th class="row_heading level0 row3" id="T_9564a_level0_row3">3</th>
-<td class="data row3 col0" id="T_9564a_row3_col0">MNIST</td>
-<td class="data row3 col1" id="T_9564a_row3_col1">5-Gaussian mixture | paired non-stationary</td>
-<td class="data row3 col2" id="T_9564a_row3_col2">Gaussian mixture</td>
-<td class="data row3 col3" id="T_9564a_row3_col3">non-stationary</td>
-<td class="data row3 col4" id="T_9564a_row3_col4">5</td>
-<td class="data row3 col5" id="T_9564a_row3_col5">120</td>
-<td class="data row3 col6" id="T_9564a_row3_col6">1</td>
-<td class="data row3 col7" id="T_9564a_row3_col7">0.9305</td>
-<td class="data row3 col8" id="T_9564a_row3_col8">0.8620</td>
-<td class="data row3 col9" id="T_9564a_row3_col9">0.6680</td>
-<td class="data row3 col10" id="T_9564a_row3_col10">0.0005</td>
-<td class="data row3 col11" id="T_9564a_row3_col11">0.5514</td>
-<td class="data row3 col12" id="T_9564a_row3_col12">0.0005</td>
-<td class="data row3 col13" id="T_9564a_row3_col13">0.1839</td>
-<td class="data row3 col14" id="T_9564a_row3_col14">-0.40621</td>
+<th class="row_heading level0 row3" id="T_4b29d_level0_row3">3</th>
+<td class="data row3 col0" id="T_4b29d_row3_col0">MNIST</td>
+<td class="data row3 col1" id="T_4b29d_row3_col1">5-Gaussian mixture | paired non-stationary</td>
+<td class="data row3 col2" id="T_4b29d_row3_col2">Gaussian mixture</td>
+<td class="data row3 col3" id="T_4b29d_row3_col3">non-stationary</td>
+<td class="data row3 col4" id="T_4b29d_row3_col4">5</td>
+<td class="data row3 col5" id="T_4b29d_row3_col5">120</td>
+<td class="data row3 col6" id="T_4b29d_row3_col6">1</td>
+<td class="data row3 col7" id="T_4b29d_row3_col7">0.9305</td>
+<td class="data row3 col8" id="T_4b29d_row3_col8">0.8620</td>
+<td class="data row3 col9" id="T_4b29d_row3_col9">0.6680</td>
+<td class="data row3 col10" id="T_4b29d_row3_col10">0.0005</td>
+<td class="data row3 col11" id="T_4b29d_row3_col11">0.5514</td>
+<td class="data row3 col12" id="T_4b29d_row3_col12">0.0005</td>
+<td class="data row3 col13" id="T_4b29d_row3_col13">0.1839</td>
+<td class="data row3 col14" id="T_4b29d_row3_col14">-0.40621</td>
 </tr>
 <tr>
-<th class="row_heading level0 row4" id="T_9564a_level0_row4">4</th>
-<td class="data row4 col0" id="T_9564a_row4_col0">MNIST</td>
-<td class="data row4 col1" id="T_9564a_row4_col1">Implicit neural | stationary</td>
-<td class="data row4 col2" id="T_9564a_row4_col2">Implicit neural</td>
-<td class="data row4 col3" id="T_9564a_row4_col3">stationary</td>
-<td class="data row4 col4" id="T_9564a_row4_col4">5</td>
-<td class="data row4 col5" id="T_9564a_row4_col5">120</td>
-<td class="data row4 col6" id="T_9564a_row4_col6">1</td>
-<td class="data row4 col7" id="T_9564a_row4_col7">0.9178</td>
-<td class="data row4 col8" id="T_9564a_row4_col8">0.8620</td>
-<td class="data row4 col9" id="T_9564a_row4_col9">0.6529</td>
-<td class="data row4 col10" id="T_9564a_row4_col10">0.0000</td>
-<td class="data row4 col11" id="T_9564a_row4_col11">0.5400</td>
-<td class="data row4 col12" id="T_9564a_row4_col12">0.0000</td>
-<td class="data row4 col13" id="T_9564a_row4_col13">0.1874</td>
-<td class="data row4 col14" id="T_9564a_row4_col14">-0.41190</td>
+<th class="row_heading level0 row4" id="T_4b29d_level0_row4">4</th>
+<td class="data row4 col0" id="T_4b29d_row4_col0">MNIST</td>
+<td class="data row4 col1" id="T_4b29d_row4_col1">Implicit neural | stationary</td>
+<td class="data row4 col2" id="T_4b29d_row4_col2">Implicit neural</td>
+<td class="data row4 col3" id="T_4b29d_row4_col3">stationary</td>
+<td class="data row4 col4" id="T_4b29d_row4_col4">5</td>
+<td class="data row4 col5" id="T_4b29d_row4_col5">120</td>
+<td class="data row4 col6" id="T_4b29d_row4_col6">1</td>
+<td class="data row4 col7" id="T_4b29d_row4_col7">0.9178</td>
+<td class="data row4 col8" id="T_4b29d_row4_col8">0.8620</td>
+<td class="data row4 col9" id="T_4b29d_row4_col9">0.6529</td>
+<td class="data row4 col10" id="T_4b29d_row4_col10">0.0000</td>
+<td class="data row4 col11" id="T_4b29d_row4_col11">0.5400</td>
+<td class="data row4 col12" id="T_4b29d_row4_col12">0.0000</td>
+<td class="data row4 col13" id="T_4b29d_row4_col13">0.1874</td>
+<td class="data row4 col14" id="T_4b29d_row4_col14">-0.41190</td>
 </tr>
 <tr>
-<th class="row_heading level0 row5" id="T_9564a_level0_row5">5</th>
-<td class="data row5 col0" id="T_9564a_row5_col0">MNIST</td>
-<td class="data row5 col1" id="T_9564a_row5_col1">Implicit neural | paired non-stationary</td>
-<td class="data row5 col2" id="T_9564a_row5_col2">Implicit neural</td>
-<td class="data row5 col3" id="T_9564a_row5_col3">non-stationary</td>
-<td class="data row5 col4" id="T_9564a_row5_col4">5</td>
-<td class="data row5 col5" id="T_9564a_row5_col5">120</td>
-<td class="data row5 col6" id="T_9564a_row5_col6">1</td>
-<td class="data row5 col7" id="T_9564a_row5_col7">0.9116</td>
-<td class="data row5 col8" id="T_9564a_row5_col8">0.8560</td>
-<td class="data row5 col9" id="T_9564a_row5_col9">0.6654</td>
-<td class="data row5 col10" id="T_9564a_row5_col10">0.0028</td>
-<td class="data row5 col11" id="T_9564a_row5_col11">0.5733</td>
-<td class="data row5 col12" id="T_9564a_row5_col12">0.0146</td>
-<td class="data row5 col13" id="T_9564a_row5_col13">0.2129</td>
-<td class="data row5 col14" id="T_9564a_row5_col14">-0.41466</td>
+<th class="row_heading level0 row5" id="T_4b29d_level0_row5">5</th>
+<td class="data row5 col0" id="T_4b29d_row5_col0">MNIST</td>
+<td class="data row5 col1" id="T_4b29d_row5_col1">Implicit neural | paired non-stationary</td>
+<td class="data row5 col2" id="T_4b29d_row5_col2">Implicit neural</td>
+<td class="data row5 col3" id="T_4b29d_row5_col3">non-stationary</td>
+<td class="data row5 col4" id="T_4b29d_row5_col4">5</td>
+<td class="data row5 col5" id="T_4b29d_row5_col5">120</td>
+<td class="data row5 col6" id="T_4b29d_row5_col6">1</td>
+<td class="data row5 col7" id="T_4b29d_row5_col7">0.9116</td>
+<td class="data row5 col8" id="T_4b29d_row5_col8">0.8560</td>
+<td class="data row5 col9" id="T_4b29d_row5_col9">0.6654</td>
+<td class="data row5 col10" id="T_4b29d_row5_col10">0.0028</td>
+<td class="data row5 col11" id="T_4b29d_row5_col11">0.5733</td>
+<td class="data row5 col12" id="T_4b29d_row5_col12">0.0146</td>
+<td class="data row5 col13" id="T_4b29d_row5_col13">0.2129</td>
+<td class="data row5 col14" id="T_4b29d_row5_col14">-0.41466</td>
 </tr>
 </tbody>
 </table>
@@ -8837,15 +8837,15 @@ best k=1 | CV accuracy=0.9116 | test accuracy=0.8560 | AMI=0.6654 | ARI=0.5733 |
 <div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
 <style type="text/css">
 </style>
-<table id="T_808c1">
+<table id="T_81338">
 <caption>Matched improvement: non-stationary minus stationary</caption>
 <thead>
 <tr>
 <th class="blank level0"> </th>
-<th class="col_heading level0 col0" id="T_808c1_level0_col0">delta test accuracy</th>
-<th class="col_heading level0 col1" id="T_808c1_level0_col1">delta AMI mean</th>
-<th class="col_heading level0 col2" id="T_808c1_level0_col2">delta ARI mean</th>
-<th class="col_heading level0 col3" id="T_808c1_level0_col3">delta class silhouette</th>
+<th class="col_heading level0 col0" id="T_81338_level0_col0">delta test accuracy</th>
+<th class="col_heading level0 col1" id="T_81338_level0_col1">delta AMI mean</th>
+<th class="col_heading level0 col2" id="T_81338_level0_col2">delta ARI mean</th>
+<th class="col_heading level0 col3" id="T_81338_level0_col3">delta class silhouette</th>
 </tr>
 <tr>
 <th class="index_name level0">kernel family</th>
@@ -8857,25 +8857,25 @@ best k=1 | CV accuracy=0.9116 | test accuracy=0.8560 | AMI=0.6654 | ARI=0.5733 |
 </thead>
 <tbody>
 <tr>
-<th class="row_heading level0 row0" id="T_808c1_level0_row0">Gaussian</th>
-<td class="data row0 col0" id="T_808c1_row0_col0">+0.0160</td>
-<td class="data row0 col1" id="T_808c1_row0_col1">-0.0051</td>
-<td class="data row0 col2" id="T_808c1_row0_col2">-0.0123</td>
-<td class="data row0 col3" id="T_808c1_row0_col3">+0.0003</td>
+<th class="row_heading level0 row0" id="T_81338_level0_row0">Gaussian</th>
+<td class="data row0 col0" id="T_81338_row0_col0">+0.0160</td>
+<td class="data row0 col1" id="T_81338_row0_col1">-0.0051</td>
+<td class="data row0 col2" id="T_81338_row0_col2">-0.0123</td>
+<td class="data row0 col3" id="T_81338_row0_col3">+0.0003</td>
 </tr>
 <tr>
-<th class="row_heading level0 row1" id="T_808c1_level0_row1">Gaussian mixture</th>
-<td class="data row1 col0" id="T_808c1_row1_col0">+0.0100</td>
-<td class="data row1 col1" id="T_808c1_row1_col1">+0.0740</td>
-<td class="data row1 col2" id="T_808c1_row1_col2">+0.0751</td>
-<td class="data row1 col3" id="T_808c1_row1_col3">+0.0038</td>
+<th class="row_heading level0 row1" id="T_81338_level0_row1">Gaussian mixture</th>
+<td class="data row1 col0" id="T_81338_row1_col0">+0.0100</td>
+<td class="data row1 col1" id="T_81338_row1_col1">+0.0740</td>
+<td class="data row1 col2" id="T_81338_row1_col2">+0.0751</td>
+<td class="data row1 col3" id="T_81338_row1_col3">+0.0038</td>
 </tr>
 <tr>
-<th class="row_heading level0 row2" id="T_808c1_level0_row2">Implicit neural</th>
-<td class="data row2 col0" id="T_808c1_row2_col0">-0.0060</td>
-<td class="data row2 col1" id="T_808c1_row2_col1">+0.0125</td>
-<td class="data row2 col2" id="T_808c1_row2_col2">+0.0334</td>
-<td class="data row2 col3" id="T_808c1_row2_col3">+0.0255</td>
+<th class="row_heading level0 row2" id="T_81338_level0_row2">Implicit neural</th>
+<td class="data row2 col0" id="T_81338_row2_col0">-0.0060</td>
+<td class="data row2 col1" id="T_81338_row2_col1">+0.0125</td>
+<td class="data row2 col2" id="T_81338_row2_col2">+0.0334</td>
+<td class="data row2 col3" id="T_81338_row2_col3">+0.0255</td>
 </tr>
 </tbody>
 </table>

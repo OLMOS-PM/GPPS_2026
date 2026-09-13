@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from train_amortized_gplvm_v2 import PairedSpectralPrior
+from .train_amortized_gplvm_v2 import PairedSpectralPrior
 
 Tensor = torch.Tensor
 

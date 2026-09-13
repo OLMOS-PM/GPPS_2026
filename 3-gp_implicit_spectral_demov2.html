@@ -7802,7 +7802,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Gaussian-Processes-Summer-School">Gaussian Processes Summer School<a class="anchor-link" href="#Gaussian-Processes-Summer-School">¶</a></h1><h2 id="Part-3:-Implicit-Neural-Spectral-Kernels">Part 3: Implicit Neural Spectral Kernels<a class="anchor-link" href="#Part-3:-Implicit-Neural-Spectral-Kernels">¶</a></h2><p><a href="https://www.uc3m.es/"><img alt="Universidad Carlos III de Madrid" src="./uc3m.png" width="520"/></a></p>
+<h1 id="Gaussian-Processes-Summer-School">Gaussian Processes Summer School<a class="anchor-link" href="#Gaussian-Processes-Summer-School">¶</a></h1><h2 id="Part-3:-Implicit-Neural-Spectral-Kernels">Part 3: Implicit Neural Spectral Kernels<a class="anchor-link" href="#Part-3:-Implicit-Neural-Spectral-Kernels">¶</a></h2><p><a href="https://www.uc3m.es/"><img alt="Universidad Carlos III de Madrid" src="./scripts_and_files/uc3m.png" width="520"/></a></p>
 <p><strong>Author:</strong> <a href="https://olmos-pm.github.io/">Pablo M. Olmos</a></p>
 <p><strong>Email:</strong> <a href="mailto:pamartin@ing.uc3m.es">pamartin@ing.uc3m.es</a></p>
 <hr/>
@@ -7835,10 +7835,10 @@ a.anchor-link {
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">generate_gp_mixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_gp_mixture</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">train_implicit_spectral_gp</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">implicit_helpers</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scripts_and_files.generate_gp_mixture</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_gp_mixture</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scripts_and_files</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_implicit_spectral_gp</span> <span class="k">as</span> <span class="n">implicit_helpers</span>
 <span class="n">importlib</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">implicit_helpers</span><span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">train_implicit_spectral_gp</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scripts_and_files.train_implicit_spectral_gp</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">as_tensors</span><span class="p">,</span>
     <span class="n">build_implicit_spectral_gp</span><span class="p">,</span>
     <span class="n">predict_sparse_signal</span><span class="p">,</span>
